@@ -1,60 +1,51 @@
-# Termux Video Downloader
+# Termux Video Downloader v3
 
-Downloader CLI cho Termux, dùng yt-dlp + FFmpeg.
+Downloader Termux dùng yt-dlp + FFmpeg.
 
 ## Tính năng
+- TikTok / Douyin và các nguồn yt-dlp hỗ trợ
+- YouTube / Facebook / Instagram
+- 4K / 2K / 1080p / 720p / 480p
+- MP3, thumbnail
+- Batch URL
+- Clipboard
+- `vdown "URL"` tải trực tiếp
+- Tự phân loại thư mục
+- Retry và progress
+- Không cần root
+- `termux-url-opener` để nhận URL từ share flow nếu bản Termux/Android hỗ trợ
 
-- TikTok / Douyin và các nguồn được yt-dlp hỗ trợ
-- Chọn chất lượng: tốt nhất, 4K, 1440p, 1080p, 720p, 480p
-- Tải audio MP3
-- Tải thumbnail
-- Tải hàng loạt từ file URL
-- Xem format mà nguồn cung cấp
-- Cập nhật yt-dlp
-- Lưu vào `Download/Video`
-- Không yêu cầu root
-
-> Video không watermark chỉ có thể tải nếu nguồn/stream cung cấp bản không watermark. Tool không dùng để xóa watermark khỏi video.
-
-## Cài đặt trên Termux
+## Cài đặt
 
 ```bash
 pkg install git -y
-git clone https://github.com/USERNAME/termux-video-downloader.git
+git clone https://github.com/tranquyenx3/termux-video-downloader.git
 cd termux-video-downloader
 bash install.sh
-```
-
-Sau đó:
-
-```bash
+source ~/.bashrc
 vdown
 ```
 
-## Clipboard
-
-Muốn dùng chức năng lấy URL từ clipboard, cài Termux:API từ cùng nguồn phân phối với Termux và cài gói:
+## Cài một dòng
 
 ```bash
-pkg install termux-api
+curl -fsSL https://raw.githubusercontent.com/tranquyenx3/termux-video-downloader/main/install.sh | bash
 ```
 
-## Gỡ cài đặt
-
-Trong thư mục repository:
+## Lệnh nhanh
 
 ```bash
-bash uninstall.sh
+vdown "URL"
+vdown --audio "URL"
+vdown --info "URL"
 ```
 
-## Cập nhật
+## Thư mục
 
-```bash
-cd ~/termux-video-downloader
-git pull
-bash install.sh
-```
+`Download/Video/TikTok-Douyin/`, `YouTube/`, `Facebook/`, `Instagram/`, `Other/`.
 
-## Lưu ý
+## Watermark
 
-Chỉ tải nội dung bạn có quyền tải/sử dụng và tuân thủ điều khoản của nền tảng.
+Tool không xóa watermark khỏi video. Chỉ tải bản không watermark khi nguồn cung cấp bản đó. Hãy tuân thủ quyền sử dụng và điều khoản nền tảng.
+
+yt-dlp có hướng dẫn cài đặt chính thức cho Android/Termux.

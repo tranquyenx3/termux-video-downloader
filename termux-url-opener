@@ -1,0 +1,4 @@
+#!/data/data/com.termux/files/usr/bin/bash
+URL="${1:-}"
+[ -n "$URL" ] || exit 1
+exec "$HOME/bin/vdown" "$URL"

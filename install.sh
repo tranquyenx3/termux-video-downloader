@@ -1,39 +1,27 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+BIN_DIR="$HOME/bin"
+DOWNLOAD_DIR="$HOME/storage/downloads/Video"
 
-echo "========================================"
-echo " TERMUX VIDEO DOWNLOADER - INSTALLER"
-echo "========================================"
-
+echo "=== TERMUX VIDEO DOWNLOADER v3 ==="
 pkg update -y
-pkg install -y python ffmpeg git
-
+pkg install -y python python-pip ffmpeg
 python -m pip install -U "yt-dlp[default]"
-
 termux-setup-storage || true
 
-mkdir -p "$HOME/bin"
-mkdir -p "$HOME/storage/downloads/Video"
+mkdir -p "$BIN_DIR" "$DOWNLOAD_DIR"
+cp "$REPO_DIR/vdown" "$BIN_DIR/vdown"
+cp "$REPO_DIR/termux-url-opener" "$BIN_DIR/termux-url-opener"
+chmod +x "$BIN_DIR/vdown" "$BIN_DIR/termux-url-opener"
 
-cp ./vdown "$HOME/bin/vdown"
-chmod +x "$HOME/bin/vdown"
-
-if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null; then
-    echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
-fi
-
-export PATH="$HOME/bin:$PATH"
+touch "$HOME/.bashrc"
+grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" || echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+export PATH="$BIN_DIR:$PATH"
 
 echo
-echo "========================================"
-echo " CÀI ĐẶT HOÀN TẤT"
-echo "========================================"
-echo "Chạy:"
-echo "  vdown"
-echo
-echo "Thư mục tải:"
-echo "  ~/storage/downloads/Video"
-echo
-echo "Nếu 'vdown' chưa được nhận, chạy:"
-echo "  source ~/.bashrc"
-echo "========================================"
+echo "CÀI ĐẶT HOÀN TẤT"
+echo "Chạy: vdown"
+echo "Tải trực tiếp: vdown \"URL\""
+echo "Thư mục: $DOWNLOAD_DIR"
+echo "yt-dlp: $(yt-dlp --version)"

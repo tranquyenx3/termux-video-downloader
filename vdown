@@ -1,200 +1,113 @@
 #!/data/data/com.termux/files/usr/bin/bash
+DOWNLOAD_ROOT="$HOME/storage/downloads/Video"
+mkdir -p "$DOWNLOAD_ROOT"
 
-DOWNLOAD_DIR="$HOME/storage/downloads/Video"
-mkdir -p "$DOWNLOAD_DIR"
+pause(){ echo; read -r -p "Nhấn Enter để tiếp tục..."; }
 
-pause() {
-    echo
-    read -r -p "Nhấn Enter để tiếp tục..."
+choose_site_dir(){
+  case "$1" in
+    *tiktok.com*|*douyin.com*|*iesdouyin.com*) echo "TikTok-Douyin";;
+    *youtube.com*|*youtu.be*) echo "YouTube";;
+    *facebook.com*|*fb.watch*) echo "Facebook";;
+    *instagram.com*) echo "Instagram";;
+    *) echo "Other";;
+  esac
 }
 
-header() {
-    clear
-    echo "╔══════════════════════════════════════╗"
-    echo "║       TERMUX VIDEO DOWNLOADER       ║"
-    echo "║                PRO                  ║"
-    echo "╚══════════════════════════════════════╝"
-    echo
+get_url(){
+  echo "1. Nhập URL"
+  echo "2. Lấy URL Clipboard"
+  read -r -p "Chọn: " n
+  case "$n" in
+    1) read -r -p "Dán URL: " URL;;
+    2) URL="$(termux-clipboard-get 2>/dev/null || true)"; echo "$URL";;
+    *) return 1;;
+  esac
+  [ -n "$URL" ]
 }
 
-get_url() {
-    echo "1. Nhập URL"
-    echo "2. Lấy URL từ Clipboard"
-    echo
-    read -r -p "Chọn: " u
-
-    case "$u" in
-        1) read -r -p "Dán URL: " URL ;;
-        2)
-            if command -v termux-clipboard-get >/dev/null 2>&1; then
-                URL="$(termux-clipboard-get)"
-                echo
-                echo "Clipboard:"
-                echo "$URL"
-            else
-                echo "Chưa cài Termux:API. Hãy chọn nhập URL."
-                return 1
-            fi
-            ;;
-        *) echo "Lựa chọn không hợp lệ."; return 1 ;;
-    esac
-
-    [ -n "$URL" ] || { echo "URL trống."; return 1; }
+download_video(){
+  local URL="$1" Q="${2:-best}"
+  local DIR="$DOWNLOAD_ROOT/$(choose_site_dir "$URL")"
+  mkdir -p "$DIR"
+  case "$Q" in
+    2160) F="bv*[height<=2160]+ba/b";;
+    1440) F="bv*[height<=1440]+ba/b";;
+    1080) F="bv*[height<=1080]+ba/b";;
+    720) F="bv*[height<=720]+ba/b";;
+    480) F="bv*[height<=480]+ba/b";;
+    *) F="bv*+ba/b";;
+  esac
+  yt-dlp --no-playlist --newline --progress --retries 3 --fragment-retries 3     --concurrent-fragments 4 -f "$F" --merge-output-format mp4     --embed-metadata --windows-filenames     -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
 }
 
-download_video() {
-    get_url || return
-
-    echo
-    echo "Chọn chất lượng:"
-    echo "1. Tốt nhất"
-    echo "2. 2160p / 4K"
-    echo "3. 1440p"
-    echo "4. 1080p"
-    echo "5. 720p"
-    echo "6. 480p"
-    echo
-    read -r -p "Chọn: " quality
-
-    case "$quality" in
-        1) FORMAT="bv*+ba/b" ;;
-        2) FORMAT="bv*[height<=2160]+ba/b" ;;
-        3) FORMAT="bv*[height<=1440]+ba/b" ;;
-        4) FORMAT="bv*[height<=1080]+ba/b" ;;
-        5) FORMAT="bv*[height<=720]+ba/b" ;;
-        6) FORMAT="bv*[height<=480]+ba/b" ;;
-        *) FORMAT="bv*+ba/b" ;;
-    esac
-
-    echo
-    yt-dlp \
-        --no-playlist \
-        -f "$FORMAT" \
-        --merge-output-format mp4 \
-        --embed-metadata \
-        --newline \
-        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
-        "$URL"
-
-    echo
-    echo "Đã tải xong."
-    echo "Lưu tại: $DOWNLOAD_DIR"
-    pause
+download_audio(){
+  local URL="$1" DIR="$DOWNLOAD_ROOT/$(choose_site_dir "$1")/Audio"
+  mkdir -p "$DIR"
+  yt-dlp --no-playlist --newline --progress --retries 3 -f "ba/b" -x     --audio-format mp3 --audio-quality 0 --embed-metadata --windows-filenames     -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
 }
 
-download_audio() {
-    get_url || return
-
-    yt-dlp \
-        --no-playlist \
-        -f "ba/b" \
-        -x \
-        --audio-format mp3 \
-        --audio-quality 0 \
-        --embed-metadata \
-        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
-        "$URL"
-
-    echo "Audio đã tải xong."
-    pause
+download_thumb(){
+  local URL="$1" DIR="$DOWNLOAD_ROOT/$(choose_site_dir "$1")/Thumbnails"
+  mkdir -p "$DIR"
+  yt-dlp --no-playlist --skip-download --write-thumbnail --convert-thumbnails jpg     --windows-filenames -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
 }
 
-download_thumbnail() {
-    get_url || return
-
-    yt-dlp \
-        --skip-download \
-        --write-thumbnail \
-        --convert-thumbnails jpg \
-        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
-        "$URL"
-
-    echo "Thumbnail đã tải xong."
-    pause
+show_info(){
+  yt-dlp --no-playlist --dump-single-json --skip-download "$1" 2>/dev/null |
+  python -c 'import json,sys; d=json.load(sys.stdin); [print(f"{k}: {d.get(k)}") for k in ("title","uploader","channel","duration","upload_date","webpage_url")]'
+  echo
+  yt-dlp --no-playlist --list-formats "$1"
 }
 
-download_batch() {
-    echo
-    read -r -p "File URL (ví dụ ~/urls.txt): " LIST
-
-    if [ ! -f "$LIST" ]; then
-        echo "Không tìm thấy file."
-        pause
-        return
-    fi
-
-    yt-dlp \
-        --no-playlist \
-        -a "$LIST" \
-        -f "bv*+ba/b" \
-        --merge-output-format mp4 \
-        --embed-metadata \
-        --newline \
-        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s"
-
-    echo "Đã hoàn tất."
-    pause
+batch(){
+  read -r -p "File URL (ví dụ ~/urls.txt): " LIST
+  [ -f "$LIST" ] || { echo "Không tìm thấy file."; pause; return; }
+  while IFS= read -r URL || [ -n "$URL" ]; do
+    [ -z "$URL" ] && continue
+    case "$URL" in \#*) continue;; esac
+    echo "=== $URL ==="
+    download_video "$URL" best || echo "Lỗi: $URL"
+  done < "$LIST"
+  pause
 }
 
-show_formats() {
-    get_url || return
-    yt-dlp --list-formats "$URL"
-    pause
+menu(){
+ while true; do
+  clear
+  echo "╔════════════════════════════════════════════╗"
+  echo "║       TERMUX VIDEO DOWNLOADER v3          ║"
+  echo "╠════════════════════════════════════════════╣"
+  echo "║ 1. Tải video                               ║"
+  echo "║ 2. Tải MP3                                 ║"
+  echo "║ 3. Tải thumbnail                           ║"
+  echo "║ 4. Tải hàng loạt                           ║"
+  echo "║ 5. Xem thông tin + format                  ║"
+  echo "║ 6. Cập nhật yt-dlp                         ║"
+  echo "║ 7. Mở thư mục Video                        ║"
+  echo "║ 8. Kiểm tra hệ thống                       ║"
+  echo "║ 0. Thoát                                   ║"
+  echo "╚════════════════════════════════════════════╝"
+  read -r -p "Chọn: " c
+  case "$c" in
+   1) get_url || continue; echo "1 Best  2 4K  3 2K  4 1080p  5 720p  6 480p"; read -r -p "Chọn: " q; case "$q" in 2) Q=2160;;3) Q=1440;;4) Q=1080;;5) Q=720;;6) Q=480;;*) Q=best;;esac; download_video "$URL" "$Q"; pause;;
+   2) get_url || continue; download_audio "$URL"; pause;;
+   3) get_url || continue; download_thumb "$URL"; pause;;
+   4) batch;;
+   5) get_url || continue; show_info "$URL"; pause;;
+   6) python -m pip install -U "yt-dlp[default]"; echo "yt-dlp: $(yt-dlp --version)"; pause;;
+   7) termux-open "$DOWNLOAD_ROOT" 2>/dev/null || echo "$DOWNLOAD_ROOT";;
+   8) echo "yt-dlp: $(yt-dlp --version 2>/dev/null || echo missing)"; python --version; ffmpeg -version 2>&1 | head -1; pause;;
+   0) clear; exit 0;;
+   *) echo "Không hợp lệ."; sleep 1;;
+  esac
+ done
 }
 
-update_ytdlp() {
-    python -m pip install -U "yt-dlp[default]"
-    echo
-    echo "yt-dlp: $(yt-dlp --version)"
-    pause
-}
-
-open_folder() {
-    if command -v termux-open >/dev/null 2>&1; then
-        termux-open "$DOWNLOAD_DIR"
-    else
-        echo "$DOWNLOAD_DIR"
-        pause
-    fi
-}
-
-system_check() {
-    echo
-    echo "yt-dlp : $(yt-dlp --version 2>/dev/null || echo 'chưa cài')"
-    echo "Python  : $(python --version 2>&1)"
-    echo "FFmpeg  : $(ffmpeg -version 2>&1 | head -1)"
-    echo
-    pause
-}
-
-main_menu() {
-    while true; do
-        header
-        echo "📥 1. Tải video"
-        echo "🎵 2. Tải audio MP3"
-        echo "🖼 3. Tải thumbnail"
-        echo "📋 4. Tải hàng loạt"
-        echo "🔍 5. Xem định dạng"
-        echo "🔄 6. Cập nhật yt-dlp"
-        echo "📂 7. Mở thư mục Download"
-        echo "ℹ️  8. Kiểm tra hệ thống"
-        echo "❌ 0. Thoát"
-        echo
-        read -r -p "Chọn: " choice
-
-        case "$choice" in
-            1) download_video ;;
-            2) download_audio ;;
-            3) download_thumbnail ;;
-            4) download_batch ;;
-            5) show_formats ;;
-            6) update_ytdlp ;;
-            7) open_folder ;;
-            8) system_check ;;
-            0) clear; exit 0 ;;
-            *) echo "Lựa chọn không hợp lệ."; sleep 1 ;;
-        esac
-    done
-}
-
-main_menu
+case "${1:-}" in
+  --help|-h) echo 'vdown "URL" | vdown --audio "URL" | vdown --info "URL"'; exit 0;;
+  --audio) download_audio "$2"; exit $?;;
+  --info) show_info "$2"; exit $?;;
+  "") menu;;
+  *) download_video "$1" "${2:-best}";;
+esac
