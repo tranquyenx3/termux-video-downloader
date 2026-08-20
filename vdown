@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.2 CLEAN"
-DOWNLOAD_ROOT="$HOME/storage/downloads/Video"
+VERSION="4.3 TIẾNG VIỆT"
+TẢI VIDEO_ROOT="$HOME/storage/downloads/Video"
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
-mkdir -p "$DOWNLOAD_ROOT" "$CONFIG_DIR"
+mkdir -p "$TẢI VIDEO_ROOT" "$CONFIG_DIR"
 
 # ANSI colors: use $'...' so Termux interprets escape codes correctly.
 RESET=$'\033[0m'
@@ -37,7 +37,7 @@ header() {
     inner=$((w-4))
 
     printf '%s+%s+%s\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
-    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO DOWNLOADER" $(( (inner-24)/2 )) "" "$RESET"
+    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO TẢI VIDEOER" $(( (inner-24)/2 )) "" "$RESET"
     printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+10)/2 )) "V$VERSION" $(( (inner-10)/2 )) "" "$RESET"
     printf '%s+%s+%s\n\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
 }
@@ -48,7 +48,7 @@ section() {
 
 pause() {
     echo
-    read -r -p "  ${DIM}Press Enter to continue...${RESET}" _
+    read -r -p "  ${DIM}Nhấn Enter để tiếp tục...${RESET}" _
 }
 
 notify() {
@@ -69,11 +69,11 @@ choose_site_dir() {
 
 get_url() {
     local n
-    section "URL SOURCE"
-    echo "  [1] Paste URL"
+    section "NGUỒN URL"
+    echo "  [1] Nhập / dán URL"
     echo "  [2] Clipboard"
     echo
-    read -r -p "  Select [1-2]: " n
+    read -r -p "  Chọn [1-2]: " n
     case "$n" in
         1) read -r -p "  URL: " URL ;;
         2)
@@ -88,15 +88,15 @@ get_url() {
         *) return 1 ;;
     esac
     [ -n "${URL:-}" ] || {
-        echo -e "${RED}  X Empty URL${RESET}"
+        echo -e "${RED}  X URL trống${RESET}"
         return 1
     }
 }
 
 quality_menu() {
     echo
-    section "VIDEO QUALITY"
-    echo "  [1] BEST"
+    section "CHẤT LƯỢNG VIDEO"
+    echo "  [1] Tốt nhất"
     echo "  [2] 4K       2160p"
     echo "  [3] 2K       1440p"
     echo "  [4] FULL HD  1080p"
@@ -130,18 +130,18 @@ download_video() {
     local QUALITY="${2:-best}"
     local SITE DIR FORMAT
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE"
+    DIR="$TẢI VIDEO_ROOT/$SITE"
     FORMAT="$(quality_format "$QUALITY")"
     mkdir -p "$DIR"
 
     header
-    section "DOWNLOAD"
-    echo "  Source     : $SITE"
-    echo "  Quality    : $QUALITY"
-    echo "  Save to    : $DIR"
+    section "TẢI VIDEO"
+    echo "  Nguồn       : $SITE"
+    echo "  Chất lượng  : $QUALITY"
+    echo "  Lưu tại     : $DIR"
     echo "  URL        : ${URL:0:65}"
     echo
-    echo -e "${CYAN}${BOLD}  DOWNLOADING...${RESET}"
+    echo -e "${CYAN}${BOLD}  TẢI VIDEOING...${RESET}"
     echo
 
     if yt-dlp \
@@ -161,14 +161,14 @@ download_video() {
     then
         printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SITE" "$URL" >> "$HISTORY_FILE"
         echo
-        echo -e "${GREEN}${BOLD}  [OK] DOWNLOAD COMPLETE${RESET}"
-        echo "  Folder: $DIR"
-        notify "Download complete - $SITE"
+        echo -e "${GREEN}${BOLD}  [OK] TẢI VIDEO COMPLETE${RESET}"
+        echo "  Thư mục: $DIR"
+        notify "Tải xong - $SITE"
         return 0
     else
         echo
-        echo -e "${RED}${BOLD}  [ERROR] DOWNLOAD FAILED${RESET}"
-        notify "Download failed - $SITE"
+        echo -e "${RED}${BOLD}  [ERROR] TẢI VIDEO FAILED${RESET}"
+        notify "Tải lỗi - $SITE"
         return 1
     fi
 }
@@ -177,11 +177,11 @@ download_audio() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE/Audio"
+    DIR="$TẢI VIDEO_ROOT/$SITE/Audio"
     mkdir -p "$DIR"
 
     header
-    section "MP3 DOWNLOAD"
+    section "MP3 TẢI VIDEO"
     echo "  Source: $SITE"
     echo
 
@@ -192,12 +192,12 @@ download_audio() {
         -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
     then
         echo
-        echo -e "${GREEN}${BOLD}  [OK] MP3 COMPLETE${RESET}"
-        notify "MP3 complete - $SITE"
+        echo -e "${GREEN}${BOLD}  [OK] TẢI MP3 HOÀN TẤT${RESET}"
+        notify "Tải MP3 xong - $SITE"
         return 0
     fi
 
-    echo -e "${RED}  [ERROR] MP3 FAILED${RESET}"
+    echo -e "${RED}  [LỖI] TẢI MP3 THẤT BẠI${RESET}"
     return 1
 }
 
@@ -205,7 +205,7 @@ download_thumbnail() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE/Thumbnails"
+    DIR="$TẢI VIDEO_ROOT/$SITE/Thumbnails"
     mkdir -p "$DIR"
 
     header
@@ -218,7 +218,7 @@ download_thumbnail() {
 
 show_info() {
     header
-    section "MEDIA INFORMATION"
+    section "THÔNG TIN MEDIA"
     yt-dlp --no-playlist --dump-single-json --skip-download "$1" 2>/dev/null |
     python -c '
 import json,sys
@@ -231,18 +231,18 @@ except Exception:
     pass
 '
     echo
-    section "AVAILABLE FORMATS"
+    section "CÁC ĐỊNH DẠNG CÓ SẴN"
     yt-dlp --no-playlist --list-formats "$1"
 }
 
 batch_download() {
     local LIST URL
     header
-    section "BATCH DOWNLOAD"
+    section "BATCH TẢI VIDEO"
     read -r -p "  URL file [~/urls.txt]: " LIST
 
     [ -f "$LIST" ] || {
-        echo -e "${RED}  X File not found${RESET}"
+        echo -e "${RED}  X Không tìm thấy file${RESET}"
         pause
         return
     }
@@ -258,41 +258,41 @@ batch_download() {
 
 history_view() {
     header
-    section "DOWNLOAD HISTORY"
+    section "TẢI VIDEO HISTORY"
     if [ -f "$HISTORY_FILE" ]; then
         tail -30 "$HISTORY_FILE"
     else
-        echo "  No downloads yet."
+        echo "  Chưa có lượt tải nào."
     fi
     pause
 }
 
 system_check() {
     header
-    section "SYSTEM STATUS"
+    section "TRẠNG THÁI HỆ THỐNG"
     echo "  VDown        : $VERSION"
     echo "  yt-dlp       : $(yt-dlp --version 2>/dev/null || echo missing)"
     echo "  Python       : $(python --version 2>&1)"
     echo "  FFmpeg       : $(ffmpeg -version 2>&1 | head -1)"
-    echo "  Notification : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
-    echo "  Storage      : $DOWNLOAD_ROOT"
+    echo "  Thông báo    : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
+    echo "  Thư mục lưu  : $TẢI VIDEO_ROOT"
     pause
 }
 
 update_tool() {
     header
-    section "UPDATE YT-DLP"
+    section "CẬP NHẬT YT-DLP"
     python -m pip install -U "yt-dlp[default]"
     echo
-    echo "  Current: $(yt-dlp --version)"
+    echo "  Phiên bản hiện tại: $(yt-dlp --version)"
     pause
 }
 
 open_folder() {
     if command -v termux-open >/dev/null 2>&1; then
-        termux-open "$DOWNLOAD_ROOT" >/dev/null 2>&1 || true
+        termux-open "$TẢI VIDEO_ROOT" >/dev/null 2>&1 || true
     else
-        echo "$DOWNLOAD_ROOT"
+        echo "$TẢI VIDEO_ROOT"
         pause
     fi
 }
@@ -300,18 +300,18 @@ open_folder() {
 menu() {
     while true; do
         header
-        section "MAIN MENU"
+        section "MENU CHÍNH"
         echo
-        echo -e "  ${CYAN}[1]${RESET}  Download Video"
-        echo -e "  ${CYAN}[2]${RESET}  Download MP3"
-        echo -e "  ${CYAN}[3]${RESET}  Download Thumbnail"
-        echo -e "  ${CYAN}[4]${RESET}  Batch Download"
-        echo -e "  ${CYAN}[5]${RESET}  Media Info + Formats"
-        echo -e "  ${CYAN}[6]${RESET}  Download History"
-        echo -e "  ${CYAN}[7]${RESET}  Update yt-dlp"
-        echo -e "  ${CYAN}[8]${RESET}  Open Video Folder"
-        echo -e "  ${CYAN}[9]${RESET}  System Status"
-        echo -e "  ${RED}[0]${RESET}  Exit"
+        echo -e "  ${CYAN}[1]${RESET}  Tải Video"
+        echo -e "  ${CYAN}[2]${RESET}  Tải MP3"
+        echo -e "  ${CYAN}[3]${RESET}  Tải Thumbnail"
+        echo -e "  ${CYAN}[4]${RESET}  Tải hàng loạt"
+        echo -e "  ${CYAN}[5]${RESET}  Thông tin + định dạng"
+        echo -e "  ${CYAN}[6]${RESET}  Lịch sử tải"
+        echo -e "  ${CYAN}[7]${RESET}  Cập nhật yt-dlp"
+        echo -e "  ${CYAN}[8]${RESET}  Mở thư mục Video"
+        echo -e "  ${CYAN}[9]${RESET}  Kiểm tra hệ thống"
+        echo -e "  ${RED}[0]${RESET}  Thoát"
         echo
         echo -e "  ${DIM}------------------------------------------${RESET}"
         read -r -p "  ${WHITE}VDown > ${RESET}" c
@@ -327,7 +327,7 @@ menu() {
             8) open_folder ;;
             9) system_check ;;
             0) clear; exit 0 ;;
-            *) echo -e "${RED}  X Invalid selection${RESET}"; sleep 1 ;;
+            *) echo -e "${RED}  X Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
         esac
     done
 }
