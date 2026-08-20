@@ -1,29 +1,14 @@
-# Termux Video Downloader v4.4 FIXED
+# Termux Video Downloader v4.4.1 FIX
 
-Bản sửa lỗi thư mục lưu của V4.4.
+- Menu tiếng Việt
+- Hỗ trợ nhiều nguồn qua yt-dlp
+- Tự chia thư mục theo nguồn
+- Thư mục lưu: `Download/Termux Video Downloader/`
+- Đã sửa lỗi menu chất lượng `[1-6]` bị ẩn do command substitution.
 
-## Thư mục lưu video
-
-Video được lưu tại:
-
-`/storage/emulated/0/Download/Termux Video Downloader/`
-
-VDown tự chia thư mục theo nguồn, ví dụ:
-
-- `YouTube/`
-- `TikTok-Douyin/`
-- `Facebook/`
-- `Instagram/`
-- `X-Twitter/`
-- `Bilibili/`
-- `Other/`
-
-## Cài đặt
-
+Cài đặt:
 ```bash
 termux-setup-storage
 bash install.sh
 vdown
 ```
-
-Bản này dùng yt-dlp để tải từ các nguồn mà yt-dlp hỗ trợ. Website có thể thay đổi và một số nguồn, đặc biệt TikTok, có thể tạm thời lỗi extractor.

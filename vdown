@@ -146,15 +146,16 @@ supported_sources() {
 }
 
 quality_menu() {
-    echo
-    section "CHẤT LƯỢNG VIDEO"
-    echo "  [1] Tốt nhất"
-    echo "  [2] 4K       2160p"
-    echo "  [3] 2K       1440p"
-    echo "  [4] FULL HD  1080p"
-    echo "  [5] HD        720p"
-    echo "  [6] SD        480p"
-    echo
+    # Menu được in ra stderr vì hàm được gọi bằng command substitution: Q="$(quality_menu)"
+    echo >&2
+    echo -e "${BLUE}CHẤT LƯỢNG VIDEO${RESET}" >&2
+    echo "  [1] Tốt nhất" >&2
+    echo "  [2] 4K       2160p" >&2
+    echo "  [3] 2K       1440p" >&2
+    echo "  [4] FULL HD  1080p" >&2
+    echo "  [5] HD        720p" >&2
+    echo "  [6] SD        480p" >&2
+    echo >&2
     read -r -p "  Chọn [1-6]: " q
     case "$q" in
         2) echo "2160" ;;
