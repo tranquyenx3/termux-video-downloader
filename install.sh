@@ -6,9 +6,10 @@ BIN_DIR="$HOME/bin"
 pkg update -y
 pkg install -y python python-pip ffmpeg
 python -m pip install -U "yt-dlp[default]"
+python -m pip install -U curl_cffi || true
 termux-setup-storage || true
 
-mkdir -p "$BIN_DIR" "$HOME/.config/vdown" "$HOME/storage/downloads/Video"
+mkdir -p "$BIN_DIR" "$HOME/.config/vdown" "$HOME/storage/downloads/Termux Video Downloader"
 
 cp "$REPO_DIR/vdown" "$BIN_DIR/vdown"
 cp "$REPO_DIR/termux-url-opener" "$BIN_DIR/termux-url-opener"
@@ -22,6 +23,6 @@ export PATH="$BIN_DIR:$PATH"
 
 echo
 echo "=========================================="
-echo " VDown 4.2 CLEAN installed"
+echo " VDown 4.4 FIXED installed"
 echo " Run: vdown"
 echo "=========================================="

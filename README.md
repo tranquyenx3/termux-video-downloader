@@ -1,17 +1,29 @@
-# Termux Video Downloader v4.4.1
+# Termux Video Downloader v4.4 FIXED
 
-Bản sửa lỗi thư mục lưu video. Video được lưu tại:
+Bản sửa lỗi thư mục lưu của V4.4.
+
+## Thư mục lưu video
+
+Video được lưu tại:
 
 `/storage/emulated/0/Download/Termux Video Downloader/`
 
-Sau đó tự chia thư mục theo nguồn: YouTube, TikTok-Douyin, Facebook...
+VDown tự chia thư mục theo nguồn, ví dụ:
+
+- `YouTube/`
+- `TikTok-Douyin/`
+- `Facebook/`
+- `Instagram/`
+- `X-Twitter/`
+- `Bilibili/`
+- `Other/`
 
 ## Cài đặt
+
 ```bash
 termux-setup-storage
-cp vdown ~/bin/vdown
-chmod +x ~/bin/vdown
+bash install.sh
 vdown
 ```
 
-Trong VDown, mục **[9] Kiểm tra hệ thống** sẽ hiển thị chính xác thư mục lưu.
+Bản này dùng yt-dlp để tải từ các nguồn mà yt-dlp hỗ trợ. Website có thể thay đổi và một số nguồn, đặc biệt TikTok, có thể tạm thời lỗi extractor.

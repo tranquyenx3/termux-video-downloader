@@ -1,16 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.4.1 ALL SOURCES"
-DOWNLOAD_ROOT="$HOME/storage/downloads/Termux Video Downloader"
-
-# Android shared Download folder: /storage/emulated/0/Download/Termux Video Downloader
-if [ ! -d "$HOME/storage/downloads" ]; then
-    echo "Đang thiết lập quyền truy cập bộ nhớ..."
-    termux-setup-storage >/dev/null 2>&1 || true
-fi
+VERSION="4.4 ALL SOURCES"
+VIDEO_ROOT="$HOME/storage/downloads/Termux Video Downloader"
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
-mkdir -p "$DOWNLOAD_ROOT" "$CONFIG_DIR"
+mkdir -p "$VIDEO_ROOT" "$CONFIG_DIR"
+
+# Android shared-storage path exposed by termux-setup-storage.
+# This keeps downloaded files visible in the phone's Download folder.
+if [ ! -d "$HOME/storage/downloads" ]; then
+    echo "Chưa có quyền bộ nhớ dùng chung. Hãy chạy: termux-setup-storage" >&2
+fi
 
 # ANSI colors: use $'...' so Termux interprets escape codes correctly.
 RESET=$'\033[0m'
@@ -104,14 +104,14 @@ get_url() {
                 URL="$(termux-clipboard-get 2>/dev/null)"
                 echo "  Clipboard: ${URL:0:65}"
             else
-                echo -e "${RED}  X Clipboard command unavailable${RESET}"
+                echo -e "${RED}  Clipboard không khả dụng${RESET}"
                 return 1
             fi
             ;;
         *) return 1 ;;
     esac
     [ -n "${URL:-}" ] || {
-        echo -e "${RED}  X URL trống${RESET}"
+        echo -e "${RED}  URL trống${RESET}"
         return 1
     }
 }
@@ -182,7 +182,7 @@ download_video() {
     local QUALITY="${2:-best}"
     local SITE DIR FORMAT
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE"
+    DIR="$VIDEO_ROOT/$SITE"
     FORMAT="$(quality_format "$QUALITY")"
     mkdir -p "$DIR"
 
@@ -213,13 +213,13 @@ download_video() {
     then
         printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SITE" "$URL" >> "$HISTORY_FILE"
         echo
-        echo -e "${GREEN}${BOLD}  [OK] TẢI HOÀN TẤT${RESET}"
+        echo -e "${GREEN}${BOLD}  [OK] TẢI VIDEO HOÀN TẤT${RESET}"
         echo "  Thư mục: $DIR"
         notify "Tải xong - $SITE"
         return 0
     else
         echo
-        echo -e "${RED}${BOLD}  [ERROR] TẢI THẤT BẠI${RESET}"
+        echo -e "${RED}${BOLD}  [LỖI] TẢI VIDEO THẤT BẠI${RESET}"
         notify "Tải lỗi - $SITE"
         return 1
     fi
@@ -229,7 +229,7 @@ download_audio() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE/Audio"
+    DIR="$VIDEO_ROOT/$SITE/Audio"
     mkdir -p "$DIR"
 
     header
@@ -257,7 +257,7 @@ download_thumbnail() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$DOWNLOAD_ROOT/$SITE/Thumbnails"
+    DIR="$VIDEO_ROOT/$SITE/Thumbnails"
     mkdir -p "$DIR"
 
     header
@@ -294,7 +294,7 @@ batch_download() {
     read -r -p "  URL file [~/urls.txt]: " LIST
 
     [ -f "$LIST" ] || {
-        echo -e "${RED}  X Không tìm thấy file${RESET}"
+        echo -e "${RED}  Không tìm thấy file${RESET}"
         pause
         return
     }
@@ -323,13 +323,12 @@ system_check() {
     header
     section "TRẠNG THÁI HỆ THỐNG"
     echo "  VDown        : $VERSION"
-    echo "  Thư mục tải   : $DOWNLOAD_ROOT"
-    echo "  Android path  : /storage/emulated/0/Download/Termux Video Downloader"
     echo "  yt-dlp       : $(yt-dlp --version 2>/dev/null || echo missing)"
     echo "  Python       : $(python --version 2>&1)"
     echo "  FFmpeg       : $(ffmpeg -version 2>&1 | head -1)"
     echo "  Thông báo    : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
-    echo "  Thư mục lưu  : $TẢI VIDEO_ROOT"
+    echo "  Thư mục lưu  : $VIDEO_ROOT"
+    echo "  Android path : /storage/emulated/0/Download/Termux Video Downloader"
     pause
 }
 
@@ -343,10 +342,11 @@ update_tool() {
 }
 
 open_folder() {
+    mkdir -p "$VIDEO_ROOT"
     if command -v termux-open >/dev/null 2>&1; then
-        termux-open "$DOWNLOAD_ROOT" >/dev/null 2>&1 || true
+        termux-open "$VIDEO_ROOT" >/dev/null 2>&1 || true
     else
-        echo "$DOWNLOAD_ROOT"
+        echo "$VIDEO_ROOT"
         pause
     fi
 }
@@ -383,7 +383,7 @@ menu() {
             9) system_check ;;
             10) supported_sources ;;
             0) clear; exit 0 ;;
-            *) echo -e "${RED}  X Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
+            *) echo -e "${RED}  Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
         esac
     done
 }
