@@ -1,24 +1,353 @@
 #!/data/data/com.termux/files/usr/bin/bash
-VERSION="4.1 PRO"
-ROOT="$HOME/storage/downloads/Video"
-CFG="$HOME/.config/vdown"
-HIST="$CFG/history.log"
-mkdir -p "$ROOT" "$CFG"
 
-R="\033[0m"; B="\033[1m"; C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; E="\033[1;31m"; W="\033[1;37m"; D="\033[2m"
-width(){ local w=$(tput cols 2>/dev/null || echo 50); [ "$w" -gt 72 ] && w=72; [ "$w" -lt 42 ] && w=42; echo "$w"; }
-bar(){ printf '%*s' "$1" '' | tr ' ' '─'; }
-head(){ clear; local w=$(width); echo -e "$C"; printf '╭%s╮\n' "$(bar $((w-2)))"; printf '│%*s%*s│\n' $(( (w-2+24)/2 )) "TERMUX VIDEO DOWNLOADER" $(( (w-2-24)/2 )) ""; printf '│%*s%*s│\n' $(( (w-2+10)/2 )) "V$VERSION" $(( (w-2-10)/2 )) ""; printf '╰%s╯\n' "$(bar $((w-2)))"; echo -e "$R"; }
-pause(){ echo; read -r -p "  ${D}↵ Enter để tiếp tục...${R}" _; }
-notify(){ command -v termux-notification >/dev/null 2>&1 && termux-notification --id 4040 --title "VDown" --content "$1" >/dev/null 2>&1 || true; }
-site(){ case "$1" in *tiktok.com*|*douyin.com*|*iesdouyin.com*) echo TikTok-Douyin;; *youtube.com*|*youtu.be*) echo YouTube;; *facebook.com*|*fb.watch*) echo Facebook;; *instagram.com*) echo Instagram;; *) echo Other;; esac; }
-url(){ echo -e "$W  NGUỒN URL$R"; echo "  [1] Nhập / dán URL"; echo "  [2] Clipboard"; read -r -p "  Chọn [1-2]: " n; case $n in 1) read -r -p "  URL: " URL;; 2) URL="$(termux-clipboard-get 2>/dev/null || true)"; echo "  ${D}${URL:0:65}$R";; *) return 1;; esac; [ -n "$URL" ]; }
-fmt(){ case "$1" in 2160) echo 'bv*[height<=2160]+ba/b';;1440) echo 'bv*[height<=1440]+ba/b';;1080) echo 'bv*[height<=1080]+ba/b';;720) echo 'bv*[height<=720]+ba/b';;480) echo 'bv*[height<=480]+ba/b';;*) echo 'bv*+ba/b';;esac; }
-quality(){ echo; echo -e "$W  CHẤT LƯỢNG$R"; echo "  [1] ★ Tốt nhất"; echo "  [2] 4K   2160p"; echo "  [3] 2K   1440p"; echo "  [4] FHD  1080p"; echo "  [5] HD    720p"; echo "  [6] SD    480p"; read -r -p "  Chọn [1-6]: " q; case $q in 2) echo 2160;;3) echo 1440;;4) echo 1080;;5) echo 720;;6) echo 480;;*) echo best;;esac; }
-video(){ local U="$1" Q="${2:-best}" S=$(site "$1") D="$ROOT/$(site "$1")"; mkdir -p "$D"; head; echo -e "$W  DOWNLOAD$R"; echo "  Nguồn      : $S"; echo "  Chất lượng : $Q"; echo "  Lưu tại    : $D"; echo "  URL        : ${U:0:65}"; echo -e "\n$C  ⬇ ĐANG TẢI...$R\n"; if yt-dlp --no-playlist --newline --progress --retries 5 --fragment-retries 5 --concurrent-fragments 4 --socket-timeout 20 -f "$(fmt "$Q")" --merge-output-format mp4 --embed-metadata --windows-filenames -o "$D/%(title).180B [%(id)s].%(ext)s" "$U"; then echo -e "\n$G$B  ✓ HOÀN TẤT$R"; echo "  $D"; printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$S" "$U" >> "$HIST"; notify "✓ Tải xong • $S"; else echo -e "\n$E$B  ✕ TẢI THẤT BẠI$R"; notify "✕ Tải lỗi • $S"; fi; }
-audio(){ local U="$1" D="$ROOT/$(site "$1")/Audio"; mkdir -p "$D"; head; echo -e "$W  MP3 DOWNLOAD$R\n"; yt-dlp --no-playlist --newline --progress --retries 5 -f 'ba/b' -x --audio-format mp3 --audio-quality 0 --embed-metadata --windows-filenames -o "$D/%(title).180B [%(id)s].%(ext)s" "$U"; }
-thumb(){ local U="$1" D="$ROOT/$(site "$1")/Thumbnails"; mkdir -p "$D"; yt-dlp --no-playlist --skip-download --write-thumbnail --convert-thumbnails jpg --windows-filenames -o "$D/%(title).180B [%(id)s].%(ext)s" "$U"; }
-info(){ head; echo -e "$W  MEDIA INFORMATION$R"; yt-dlp --no-playlist --dump-single-json --skip-download "$1" 2>/dev/null | python -c 'import json,sys; d=json.load(sys.stdin); [print(f"  {k:<12}: {d.get(k)}") for k in ("title","uploader","channel","duration","upload_date")]'; echo; echo -e "$W  AVAILABLE FORMATS$R"; yt-dlp --no-playlist --list-formats "$1"; }
-batch(){ head; read -r -p "  File URL [~/urls.txt]: " L; [ -f "$L" ] || { echo -e "$E  ✕ Không tìm thấy file$R"; pause; return; }; while IFS= read -r U || [ -n "$U" ]; do [ -z "$U" ] && continue; case "$U" in \#*) continue;;esac; video "$U" best; done < "$L"; pause; }
-menu(){ while true; do head; echo -e "$W$B  MAIN MENU$R\n"; echo -e "  $C[1]$R  ⬇  Tải video"; echo -e "  $C[2]$R  ♪  Tải MP3"; echo -e "  $C[3]$R  ▣  Tải thumbnail"; echo -e "  $C[4]$R  ≣  Tải hàng loạt"; echo -e "  $C[5]$R  ◉  Info + formats"; echo -e "  $C[6]$R  ◷  Lịch sử tải"; echo -e "  $C[7]$R  ↻  Cập nhật yt-dlp"; echo -e "  $C[8]$R  ▰  Mở thư mục"; echo -e "  $C[9]$R  ✓  Hệ thống"; echo -e "  $E[0]$R  ×  Thoát"; echo -e "\n  ${D}────────────────────────────────────────$R"; read -r -p "  $W VDown › $R" c; case $c in 1) url||continue; Q=$(quality); video "$URL" "$Q"; pause;;2) url||continue; audio "$URL"; pause;;3) url||continue; thumb "$URL"; pause;;4) batch;;5) url||continue; info "$URL"; pause;;6) head; echo -e "$W  LỊCH SỬ TẢI$R"; tail -30 "$HIST" 2>/dev/null || echo "  Chưa có lịch sử."; pause;;7) head; python -m pip install -U 'yt-dlp[default]'; echo "  yt-dlp: $(yt-dlp --version)"; pause;;8) termux-open "$ROOT" 2>/dev/null || echo "$ROOT"; sleep 1;;9) head; echo "  VDown: $VERSION"; echo "  yt-dlp: $(yt-dlp --version 2>/dev/null || echo missing)"; echo "  Python: $(python --version 2>&1)"; echo "  FFmpeg: $(ffmpeg -version 2>&1 | head -1)"; pause;;0) clear; exit;;*) echo -e "$E  ✕ Không hợp lệ$R"; sleep 1;;esac; done; }
-case "${1:-}" in --audio) audio "$2";;--info) info "$2";;--help|-h) echo 'vdown "URL" | vdown --audio "URL" | vdown --info "URL"';; "") menu;;*) video "$1" "${2:-best}";;esac
+VERSION="4.2 CLEAN"
+DOWNLOAD_ROOT="$HOME/storage/downloads/Video"
+CONFIG_DIR="$HOME/.config/vdown"
+HISTORY_FILE="$CONFIG_DIR/history.log"
+mkdir -p "$DOWNLOAD_ROOT" "$CONFIG_DIR"
+
+# ANSI colors: use $'...' so Termux interprets escape codes correctly.
+RESET=$'\033[0m'
+BOLD=$'\033[1m'
+CYAN=$'\033[1;36m'
+BLUE=$'\033[1;34m'
+GREEN=$'\033[1;32m'
+YELLOW=$'\033[1;33m'
+RED=$'\033[1;31m'
+WHITE=$'\033[1;37m'
+DIM=$'\033[2m'
+
+term_width() {
+    local w
+    w=$(tput cols 2>/dev/null || echo 50)
+    [ "$w" -gt 70 ] && w=70
+    [ "$w" -lt 42 ] && w=42
+    echo "$w"
+}
+
+line() {
+    local n="$1"
+    printf '%*s' "$n" '' | tr ' ' '-'
+}
+
+header() {
+    clear
+    local w inner
+    w=$(term_width)
+    inner=$((w-4))
+
+    printf '%s+%s+%s\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
+    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO DOWNLOADER" $(( (inner-24)/2 )) "" "$RESET"
+    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+10)/2 )) "V$VERSION" $(( (inner-10)/2 )) "" "$RESET"
+    printf '%s+%s+%s\n\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
+}
+
+section() {
+    printf '%s%s  %s%s\n' "$BLUE" "$BOLD" "$1" "$RESET"
+}
+
+pause() {
+    echo
+    read -r -p "  ${DIM}Press Enter to continue...${RESET}" _
+}
+
+notify() {
+    if command -v termux-notification >/dev/null 2>&1; then
+        termux-notification --id 4040 --title "VDown" --content "$1" >/dev/null 2>&1 || true
+    fi
+}
+
+choose_site_dir() {
+    case "$1" in
+        *tiktok.com*|*douyin.com*|*iesdouyin.com*) echo "TikTok-Douyin" ;;
+        *youtube.com*|*youtu.be*) echo "YouTube" ;;
+        *facebook.com*|*fb.watch*) echo "Facebook" ;;
+        *instagram.com*) echo "Instagram" ;;
+        *) echo "Other" ;;
+    esac
+}
+
+get_url() {
+    local n
+    section "URL SOURCE"
+    echo "  [1] Paste URL"
+    echo "  [2] Clipboard"
+    echo
+    read -r -p "  Select [1-2]: " n
+    case "$n" in
+        1) read -r -p "  URL: " URL ;;
+        2)
+            if command -v termux-clipboard-get >/dev/null 2>&1; then
+                URL="$(termux-clipboard-get 2>/dev/null)"
+                echo "  Clipboard: ${URL:0:65}"
+            else
+                echo -e "${RED}  X Clipboard command unavailable${RESET}"
+                return 1
+            fi
+            ;;
+        *) return 1 ;;
+    esac
+    [ -n "${URL:-}" ] || {
+        echo -e "${RED}  X Empty URL${RESET}"
+        return 1
+    }
+}
+
+quality_menu() {
+    echo
+    section "VIDEO QUALITY"
+    echo "  [1] BEST"
+    echo "  [2] 4K       2160p"
+    echo "  [3] 2K       1440p"
+    echo "  [4] FULL HD  1080p"
+    echo "  [5] HD        720p"
+    echo "  [6] SD        480p"
+    echo
+    read -r -p "  Select [1-6]: " q
+    case "$q" in
+        2) echo "2160" ;;
+        3) echo "1440" ;;
+        4) echo "1080" ;;
+        5) echo "720" ;;
+        6) echo "480" ;;
+        *) echo "best" ;;
+    esac
+}
+
+quality_format() {
+    case "$1" in
+        2160) echo "bv*[height<=2160]+ba/b" ;;
+        1440) echo "bv*[height<=1440]+ba/b" ;;
+        1080) echo "bv*[height<=1080]+ba/b" ;;
+        720)  echo "bv*[height<=720]+ba/b" ;;
+        480)  echo "bv*[height<=480]+ba/b" ;;
+        *) echo "bv*+ba/b" ;;
+    esac
+}
+
+download_video() {
+    local URL="$1"
+    local QUALITY="${2:-best}"
+    local SITE DIR FORMAT
+    SITE="$(choose_site_dir "$URL")"
+    DIR="$DOWNLOAD_ROOT/$SITE"
+    FORMAT="$(quality_format "$QUALITY")"
+    mkdir -p "$DIR"
+
+    header
+    section "DOWNLOAD"
+    echo "  Source     : $SITE"
+    echo "  Quality    : $QUALITY"
+    echo "  Save to    : $DIR"
+    echo "  URL        : ${URL:0:65}"
+    echo
+    echo -e "${CYAN}${BOLD}  DOWNLOADING...${RESET}"
+    echo
+
+    if yt-dlp \
+        --no-playlist \
+        --newline \
+        --progress \
+        --retries 5 \
+        --fragment-retries 5 \
+        --concurrent-fragments 4 \
+        --socket-timeout 20 \
+        -f "$FORMAT" \
+        --merge-output-format mp4 \
+        --embed-metadata \
+        --windows-filenames \
+        -o "$DIR/%(title).180B [%(id)s].%(ext)s" \
+        "$URL"
+    then
+        printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SITE" "$URL" >> "$HISTORY_FILE"
+        echo
+        echo -e "${GREEN}${BOLD}  [OK] DOWNLOAD COMPLETE${RESET}"
+        echo "  Folder: $DIR"
+        notify "Download complete - $SITE"
+        return 0
+    else
+        echo
+        echo -e "${RED}${BOLD}  [ERROR] DOWNLOAD FAILED${RESET}"
+        notify "Download failed - $SITE"
+        return 1
+    fi
+}
+
+download_audio() {
+    local URL="$1"
+    local SITE DIR
+    SITE="$(choose_site_dir "$URL")"
+    DIR="$DOWNLOAD_ROOT/$SITE/Audio"
+    mkdir -p "$DIR"
+
+    header
+    section "MP3 DOWNLOAD"
+    echo "  Source: $SITE"
+    echo
+
+    if yt-dlp \
+        --no-playlist --newline --progress --retries 5 \
+        -f "ba/b" -x --audio-format mp3 --audio-quality 0 \
+        --embed-metadata --windows-filenames \
+        -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
+    then
+        echo
+        echo -e "${GREEN}${BOLD}  [OK] MP3 COMPLETE${RESET}"
+        notify "MP3 complete - $SITE"
+        return 0
+    fi
+
+    echo -e "${RED}  [ERROR] MP3 FAILED${RESET}"
+    return 1
+}
+
+download_thumbnail() {
+    local URL="$1"
+    local SITE DIR
+    SITE="$(choose_site_dir "$URL")"
+    DIR="$DOWNLOAD_ROOT/$SITE/Thumbnails"
+    mkdir -p "$DIR"
+
+    header
+    section "THUMBNAIL"
+    echo
+    yt-dlp --no-playlist --skip-download --write-thumbnail \
+        --convert-thumbnails jpg --windows-filenames \
+        -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
+}
+
+show_info() {
+    header
+    section "MEDIA INFORMATION"
+    yt-dlp --no-playlist --dump-single-json --skip-download "$1" 2>/dev/null |
+    python -c '
+import json,sys
+try:
+    d=json.load(sys.stdin)
+    for k in ("title","uploader","channel","duration","upload_date","webpage_url"):
+        if d.get(k) is not None:
+            print(f"  {k:<12}: {d[k]}")
+except Exception:
+    pass
+'
+    echo
+    section "AVAILABLE FORMATS"
+    yt-dlp --no-playlist --list-formats "$1"
+}
+
+batch_download() {
+    local LIST URL
+    header
+    section "BATCH DOWNLOAD"
+    read -r -p "  URL file [~/urls.txt]: " LIST
+
+    [ -f "$LIST" ] || {
+        echo -e "${RED}  X File not found${RESET}"
+        pause
+        return
+    }
+
+    while IFS= read -r URL || [ -n "$URL" ]; do
+        [ -z "$URL" ] && continue
+        case "$URL" in \#*) continue ;; esac
+        download_video "$URL" "best" || true
+    done < "$LIST"
+
+    pause
+}
+
+history_view() {
+    header
+    section "DOWNLOAD HISTORY"
+    if [ -f "$HISTORY_FILE" ]; then
+        tail -30 "$HISTORY_FILE"
+    else
+        echo "  No downloads yet."
+    fi
+    pause
+}
+
+system_check() {
+    header
+    section "SYSTEM STATUS"
+    echo "  VDown        : $VERSION"
+    echo "  yt-dlp       : $(yt-dlp --version 2>/dev/null || echo missing)"
+    echo "  Python       : $(python --version 2>&1)"
+    echo "  FFmpeg       : $(ffmpeg -version 2>&1 | head -1)"
+    echo "  Notification : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
+    echo "  Storage      : $DOWNLOAD_ROOT"
+    pause
+}
+
+update_tool() {
+    header
+    section "UPDATE YT-DLP"
+    python -m pip install -U "yt-dlp[default]"
+    echo
+    echo "  Current: $(yt-dlp --version)"
+    pause
+}
+
+open_folder() {
+    if command -v termux-open >/dev/null 2>&1; then
+        termux-open "$DOWNLOAD_ROOT" >/dev/null 2>&1 || true
+    else
+        echo "$DOWNLOAD_ROOT"
+        pause
+    fi
+}
+
+menu() {
+    while true; do
+        header
+        section "MAIN MENU"
+        echo
+        echo -e "  ${CYAN}[1]${RESET}  Download Video"
+        echo -e "  ${CYAN}[2]${RESET}  Download MP3"
+        echo -e "  ${CYAN}[3]${RESET}  Download Thumbnail"
+        echo -e "  ${CYAN}[4]${RESET}  Batch Download"
+        echo -e "  ${CYAN}[5]${RESET}  Media Info + Formats"
+        echo -e "  ${CYAN}[6]${RESET}  Download History"
+        echo -e "  ${CYAN}[7]${RESET}  Update yt-dlp"
+        echo -e "  ${CYAN}[8]${RESET}  Open Video Folder"
+        echo -e "  ${CYAN}[9]${RESET}  System Status"
+        echo -e "  ${RED}[0]${RESET}  Exit"
+        echo
+        echo -e "  ${DIM}------------------------------------------${RESET}"
+        read -r -p "  ${WHITE}VDown > ${RESET}" c
+
+        case "$c" in
+            1) get_url || continue; Q="$(quality_menu)"; download_video "$URL" "$Q"; pause ;;
+            2) get_url || continue; download_audio "$URL"; pause ;;
+            3) get_url || continue; download_thumbnail "$URL"; pause ;;
+            4) batch_download ;;
+            5) get_url || continue; show_info "$URL"; pause ;;
+            6) history_view ;;
+            7) update_tool ;;
+            8) open_folder ;;
+            9) system_check ;;
+            0) clear; exit 0 ;;
+            *) echo -e "${RED}  X Invalid selection${RESET}"; sleep 1 ;;
+        esac
+    done
+}
+
+case "${1:-}" in
+    --help|-h)
+        echo 'vdown "URL"'
+        echo 'vdown --audio "URL"'
+        echo 'vdown --info "URL"'
+        ;;
+    --audio)
+        download_audio "$2"
+        ;;
+    --info)
+        show_info "$2"
+        ;;
+    "")
+        menu
+        ;;
+    *)
+        download_video "$1" "${2:-best}"
+        ;;
+esac
