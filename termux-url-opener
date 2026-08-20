@@ -1,4 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# Receive a URL from Android/Termux share flow.
 URL="${1:-}"
 [ -n "$URL" ] || exit 1
 exec "$HOME/bin/vdown" "$URL"

@@ -1,19 +1,22 @@
-# Termux Video Downloader v3
+# Termux Video Downloader v4
 
-Downloader Termux dùng yt-dlp + FFmpeg.
+Downloader cho Termux dùng yt-dlp + FFmpeg.
 
-## Tính năng
-- TikTok / Douyin và các nguồn yt-dlp hỗ trợ
-- YouTube / Facebook / Instagram
-- 4K / 2K / 1080p / 720p / 480p
-- MP3, thumbnail
-- Batch URL
+## V4 có gì mới?
+
+- Tải URL trực tiếp: `vdown "URL"`
 - Clipboard
-- `vdown "URL"` tải trực tiếp
-- Tự phân loại thư mục
-- Retry và progress
+- Share flow qua `termux-url-opener` nếu Termux/Android hiện Termux như một đích chia sẻ
+- Thông báo khi tải xong nếu Termux:API được cài
+- Lịch sử tải
+- Tự chia thư mục theo nguồn
+- Retry mạng
+- 4K / 2K / 1080p / 720p / 480p
+- MP3
+- Thumbnail
+- Batch URL
+- Info + danh sách format
 - Không cần root
-- `termux-url-opener` để nhận URL từ share flow nếu bản Termux/Android hỗ trợ
 
 ## Cài đặt
 
@@ -28,9 +31,21 @@ vdown
 
 ## Cài một dòng
 
+Sau khi `install.sh` đã có trên branch `main`:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tranquyenx3/termux-video-downloader/main/install.sh | bash
 ```
+
+## Share từ TikTok/Douyin
+
+1. Cài Termux.
+2. Cài Termux:API nếu muốn thông báo.
+3. Trong TikTok/Douyin bấm Chia sẻ.
+4. Nếu Android/Termux hiện Termux trong danh sách đích chia sẻ, chọn nó.
+5. `termux-url-opener` nhận URL và gọi `vdown`.
+
+Nếu Termux không xuất hiện trong bảng Chia sẻ, dùng Clipboard trong menu VDown. Hành vi Share phụ thuộc phiên bản Termux và Android.
 
 ## Lệnh nhanh
 
@@ -40,12 +55,48 @@ vdown --audio "URL"
 vdown --info "URL"
 ```
 
+## Batch
+
+Tạo `~/urls.txt`, mỗi dòng một URL:
+
+```text
+https://example.com/video1
+https://example.com/video2
+```
+
+Chọn `4. Tải hàng loạt`.
+
+## Thông báo
+
+`termux-notification` là tùy chọn. Cần ứng dụng Termux:API tương thích và gói `termux-api` nếu muốn dùng.
+
 ## Thư mục
 
-`Download/Video/TikTok-Douyin/`, `YouTube/`, `Facebook/`, `Instagram/`, `Other/`.
+```text
+Download/Video/
+├── TikTok-Douyin/
+├── YouTube/
+├── Facebook/
+├── Instagram/
+└── Other/
+```
 
 ## Watermark
 
-Tool không xóa watermark khỏi video. Chỉ tải bản không watermark khi nguồn cung cấp bản đó. Hãy tuân thủ quyền sử dụng và điều khoản nền tảng.
+VDown không xóa watermark khỏi video. Chỉ tải được bản không watermark khi nguồn cung cấp bản đó. Hãy chỉ tải nội dung bạn có quyền sử dụng và tuân thủ điều khoản của nền tảng.
 
-yt-dlp có hướng dẫn cài đặt chính thức cho Android/Termux.
+## Cập nhật repository
+
+Nếu đã clone repo:
+
+```bash
+cd ~/termux-video-downloader
+git pull
+bash install.sh
+```
+
+Hoặc chạy:
+
+```bash
+bash update.sh
+```
