@@ -1,8 +1,12 @@
-# Termux Video Downloader v4.3 - Tiếng Việt
+# Termux Video Downloader v4.4 - ALL SOURCES
 
-Giao diện VDown bằng tiếng Việt. Không thay đổi ngôn ngữ hệ thống Termux/Android.
+Downloader Termux dùng yt-dlp để tự nhận diện URL và tải video từ các nguồn được yt-dlp hỗ trợ.
 
-Cài:
+Có menu tiếng Việt, tự phân loại thư mục theo nguồn và danh sách nguồn phổ biến.
+
+> Không thể đảm bảo mọi website luôn hoạt động vì website thường xuyên thay đổi. Không xóa watermark; chỉ tải bản mà nguồn cung cấp.
+
+Cập nhật:
 ```bash
 cp vdown ~/bin/vdown
 chmod +x ~/bin/vdown

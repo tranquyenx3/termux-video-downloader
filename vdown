@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.3 TIẾNG VIỆT"
+VERSION="4.4 ALL SOURCES"
 TẢI VIDEO_ROOT="$HOME/storage/downloads/Video"
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
@@ -63,6 +63,23 @@ choose_site_dir() {
         *youtube.com*|*youtu.be*) echo "YouTube" ;;
         *facebook.com*|*fb.watch*) echo "Facebook" ;;
         *instagram.com*) echo "Instagram" ;;
+        *x.com*|*twitter.com*) echo "X-Twitter" ;;
+        *reddit.com*) echo "Reddit" ;;
+        *vimeo.com*) echo "Vimeo" ;;
+        *dailymotion.com*) echo "Dailymotion" ;;
+        *weibo.com*) echo "Weibo" ;;
+        *xiaohongshu.com*|*xhslink.com*) echo "Xiaohongshu" ;;
+        *bilibili.com*) echo "Bilibili" ;;
+        *vk.com*) echo "VK" ;;
+        *twitch.tv*) echo "Twitch" ;;
+        *pinterest.com*) echo "Pinterest" ;;
+        *tumblr.com*) echo "Tumblr" ;;
+        *linkedin.com*) echo "LinkedIn" ;;
+        *threads.net*) echo "Threads" ;;
+        *snapchat.com*) echo "Snapchat" ;;
+        *likee.video*|*likee.com*) echo "Likee" ;;
+        *kwai.com*|*kuaishou.com*) echo "Kwai" ;;
+        *nicovideo.jp*) echo "Niconico" ;;
         *) echo "Other" ;;
     esac
 }
@@ -91,6 +108,35 @@ get_url() {
         echo -e "${RED}  X URL trống${RESET}"
         return 1
     }
+}
+
+supported_sources() {
+    header
+    section "NGUỒN HỖ TRỢ TỰ ĐỘNG"
+    echo
+    echo "  VDown dùng yt-dlp để tự nhận diện URL."
+    echo
+    echo "  Mạng xã hội phổ biến:"
+    echo "  • TikTok / Douyin"
+    echo "  • YouTube / Shorts"
+    echo "  • Facebook / Reels"
+    echo "  • Instagram / Reels"
+    echo "  • X (Twitter)"
+    echo "  • Reddit"
+    echo "  • Vimeo / Dailymotion"
+    echo "  • Weibo / Xiaohongshu"
+    echo "  • Bilibili / VK"
+    echo "  • Twitch / Pinterest"
+    echo "  • Tumblr / LinkedIn / Threads"
+    echo "  • Snapchat / Likee / Kwai"
+    echo
+    echo "  Ngoài ra còn rất nhiều website khác."
+    echo "  URL không nằm trong danh sách vẫn có thể"
+    echo "  hoạt động qua bộ trích xuất generic."
+    echo
+    echo "  Lưu ý: website thay đổi liên tục; không phải"
+    echo "  URL nào cũng được đảm bảo tải thành công."
+    pause
 }
 
 quality_menu() {
@@ -311,6 +357,7 @@ menu() {
         echo -e "  ${CYAN}[7]${RESET}  Cập nhật yt-dlp"
         echo -e "  ${CYAN}[8]${RESET}  Mở thư mục Video"
         echo -e "  ${CYAN}[9]${RESET}  Kiểm tra hệ thống"
+        echo -e "  ${CYAN}[10]${RESET} Danh sách nguồn hỗ trợ"
         echo -e "  ${RED}[0]${RESET}  Thoát"
         echo
         echo -e "  ${DIM}------------------------------------------${RESET}"
@@ -326,6 +373,7 @@ menu() {
             7) update_tool ;;
             8) open_folder ;;
             9) system_check ;;
+            10) supported_sources ;;
             0) clear; exit 0 ;;
             *) echo -e "${RED}  X Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
         esac
