@@ -1,14 +1,17 @@
-# Termux Video Downloader v4.4 - ALL SOURCES
+# Termux Video Downloader v4.4.1
 
-Downloader Termux dùng yt-dlp để tự nhận diện URL và tải video từ các nguồn được yt-dlp hỗ trợ.
+Bản sửa lỗi thư mục lưu video. Video được lưu tại:
 
-Có menu tiếng Việt, tự phân loại thư mục theo nguồn và danh sách nguồn phổ biến.
+`/storage/emulated/0/Download/Termux Video Downloader/`
 
-> Không thể đảm bảo mọi website luôn hoạt động vì website thường xuyên thay đổi. Không xóa watermark; chỉ tải bản mà nguồn cung cấp.
+Sau đó tự chia thư mục theo nguồn: YouTube, TikTok-Douyin, Facebook...
 
-Cập nhật:
+## Cài đặt
 ```bash
+termux-setup-storage
 cp vdown ~/bin/vdown
 chmod +x ~/bin/vdown
 vdown
 ```
+
+Trong VDown, mục **[9] Kiểm tra hệ thống** sẽ hiển thị chính xác thư mục lưu.

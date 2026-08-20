@@ -1,10 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.4 ALL SOURCES"
-TẢI VIDEO_ROOT="$HOME/storage/downloads/Video"
+VERSION="4.4.1 ALL SOURCES"
+DOWNLOAD_ROOT="$HOME/storage/downloads/Termux Video Downloader"
+
+# Android shared Download folder: /storage/emulated/0/Download/Termux Video Downloader
+if [ ! -d "$HOME/storage/downloads" ]; then
+    echo "Đang thiết lập quyền truy cập bộ nhớ..."
+    termux-setup-storage >/dev/null 2>&1 || true
+fi
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
-mkdir -p "$TẢI VIDEO_ROOT" "$CONFIG_DIR"
+mkdir -p "$DOWNLOAD_ROOT" "$CONFIG_DIR"
 
 # ANSI colors: use $'...' so Termux interprets escape codes correctly.
 RESET=$'\033[0m'
@@ -37,7 +43,7 @@ header() {
     inner=$((w-4))
 
     printf '%s+%s+%s\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
-    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO TẢI VIDEOER" $(( (inner-24)/2 )) "" "$RESET"
+    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO DOWNLOADER" $(( (inner-24)/2 )) "" "$RESET"
     printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+10)/2 )) "V$VERSION" $(( (inner-10)/2 )) "" "$RESET"
     printf '%s+%s+%s\n\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
 }
@@ -149,7 +155,7 @@ quality_menu() {
     echo "  [5] HD        720p"
     echo "  [6] SD        480p"
     echo
-    read -r -p "  Select [1-6]: " q
+    read -r -p "  Chọn [1-6]: " q
     case "$q" in
         2) echo "2160" ;;
         3) echo "1440" ;;
@@ -176,7 +182,7 @@ download_video() {
     local QUALITY="${2:-best}"
     local SITE DIR FORMAT
     SITE="$(choose_site_dir "$URL")"
-    DIR="$TẢI VIDEO_ROOT/$SITE"
+    DIR="$DOWNLOAD_ROOT/$SITE"
     FORMAT="$(quality_format "$QUALITY")"
     mkdir -p "$DIR"
 
@@ -185,9 +191,9 @@ download_video() {
     echo "  Nguồn       : $SITE"
     echo "  Chất lượng  : $QUALITY"
     echo "  Lưu tại     : $DIR"
-    echo "  URL        : ${URL:0:65}"
+    echo "  URL         : ${URL:0:65}"
     echo
-    echo -e "${CYAN}${BOLD}  TẢI VIDEOING...${RESET}"
+    echo -e "${CYAN}${BOLD}  ĐANG TẢI...${RESET}"
     echo
 
     if yt-dlp \
@@ -207,13 +213,13 @@ download_video() {
     then
         printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SITE" "$URL" >> "$HISTORY_FILE"
         echo
-        echo -e "${GREEN}${BOLD}  [OK] TẢI VIDEO COMPLETE${RESET}"
+        echo -e "${GREEN}${BOLD}  [OK] TẢI HOÀN TẤT${RESET}"
         echo "  Thư mục: $DIR"
         notify "Tải xong - $SITE"
         return 0
     else
         echo
-        echo -e "${RED}${BOLD}  [ERROR] TẢI VIDEO FAILED${RESET}"
+        echo -e "${RED}${BOLD}  [ERROR] TẢI THẤT BẠI${RESET}"
         notify "Tải lỗi - $SITE"
         return 1
     fi
@@ -223,12 +229,12 @@ download_audio() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$TẢI VIDEO_ROOT/$SITE/Audio"
+    DIR="$DOWNLOAD_ROOT/$SITE/Audio"
     mkdir -p "$DIR"
 
     header
-    section "MP3 TẢI VIDEO"
-    echo "  Source: $SITE"
+    section "TẢI MP3"
+    echo "  Nguồn: $SITE"
     echo
 
     if yt-dlp \
@@ -251,7 +257,7 @@ download_thumbnail() {
     local URL="$1"
     local SITE DIR
     SITE="$(choose_site_dir "$URL")"
-    DIR="$TẢI VIDEO_ROOT/$SITE/Thumbnails"
+    DIR="$DOWNLOAD_ROOT/$SITE/Thumbnails"
     mkdir -p "$DIR"
 
     header
@@ -284,7 +290,7 @@ except Exception:
 batch_download() {
     local LIST URL
     header
-    section "BATCH TẢI VIDEO"
+    section "TẢI HÀNG LOẠT"
     read -r -p "  URL file [~/urls.txt]: " LIST
 
     [ -f "$LIST" ] || {
@@ -304,7 +310,7 @@ batch_download() {
 
 history_view() {
     header
-    section "TẢI VIDEO HISTORY"
+    section "LỊCH SỬ TẢI"
     if [ -f "$HISTORY_FILE" ]; then
         tail -30 "$HISTORY_FILE"
     else
@@ -317,6 +323,8 @@ system_check() {
     header
     section "TRẠNG THÁI HỆ THỐNG"
     echo "  VDown        : $VERSION"
+    echo "  Thư mục tải   : $DOWNLOAD_ROOT"
+    echo "  Android path  : /storage/emulated/0/Download/Termux Video Downloader"
     echo "  yt-dlp       : $(yt-dlp --version 2>/dev/null || echo missing)"
     echo "  Python       : $(python --version 2>&1)"
     echo "  FFmpeg       : $(ffmpeg -version 2>&1 | head -1)"
@@ -336,9 +344,9 @@ update_tool() {
 
 open_folder() {
     if command -v termux-open >/dev/null 2>&1; then
-        termux-open "$TẢI VIDEO_ROOT" >/dev/null 2>&1 || true
+        termux-open "$DOWNLOAD_ROOT" >/dev/null 2>&1 || true
     else
-        echo "$TẢI VIDEO_ROOT"
+        echo "$DOWNLOAD_ROOT"
         pause
     fi
 }
