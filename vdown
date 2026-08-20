@@ -1,0 +1,200 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+DOWNLOAD_DIR="$HOME/storage/downloads/Video"
+mkdir -p "$DOWNLOAD_DIR"
+
+pause() {
+    echo
+    read -r -p "Nhấn Enter để tiếp tục..."
+}
+
+header() {
+    clear
+    echo "╔══════════════════════════════════════╗"
+    echo "║       TERMUX VIDEO DOWNLOADER       ║"
+    echo "║                PRO                  ║"
+    echo "╚══════════════════════════════════════╝"
+    echo
+}
+
+get_url() {
+    echo "1. Nhập URL"
+    echo "2. Lấy URL từ Clipboard"
+    echo
+    read -r -p "Chọn: " u
+
+    case "$u" in
+        1) read -r -p "Dán URL: " URL ;;
+        2)
+            if command -v termux-clipboard-get >/dev/null 2>&1; then
+                URL="$(termux-clipboard-get)"
+                echo
+                echo "Clipboard:"
+                echo "$URL"
+            else
+                echo "Chưa cài Termux:API. Hãy chọn nhập URL."
+                return 1
+            fi
+            ;;
+        *) echo "Lựa chọn không hợp lệ."; return 1 ;;
+    esac
+
+    [ -n "$URL" ] || { echo "URL trống."; return 1; }
+}
+
+download_video() {
+    get_url || return
+
+    echo
+    echo "Chọn chất lượng:"
+    echo "1. Tốt nhất"
+    echo "2. 2160p / 4K"
+    echo "3. 1440p"
+    echo "4. 1080p"
+    echo "5. 720p"
+    echo "6. 480p"
+    echo
+    read -r -p "Chọn: " quality
+
+    case "$quality" in
+        1) FORMAT="bv*+ba/b" ;;
+        2) FORMAT="bv*[height<=2160]+ba/b" ;;
+        3) FORMAT="bv*[height<=1440]+ba/b" ;;
+        4) FORMAT="bv*[height<=1080]+ba/b" ;;
+        5) FORMAT="bv*[height<=720]+ba/b" ;;
+        6) FORMAT="bv*[height<=480]+ba/b" ;;
+        *) FORMAT="bv*+ba/b" ;;
+    esac
+
+    echo
+    yt-dlp \
+        --no-playlist \
+        -f "$FORMAT" \
+        --merge-output-format mp4 \
+        --embed-metadata \
+        --newline \
+        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
+        "$URL"
+
+    echo
+    echo "Đã tải xong."
+    echo "Lưu tại: $DOWNLOAD_DIR"
+    pause
+}
+
+download_audio() {
+    get_url || return
+
+    yt-dlp \
+        --no-playlist \
+        -f "ba/b" \
+        -x \
+        --audio-format mp3 \
+        --audio-quality 0 \
+        --embed-metadata \
+        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
+        "$URL"
+
+    echo "Audio đã tải xong."
+    pause
+}
+
+download_thumbnail() {
+    get_url || return
+
+    yt-dlp \
+        --skip-download \
+        --write-thumbnail \
+        --convert-thumbnails jpg \
+        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s" \
+        "$URL"
+
+    echo "Thumbnail đã tải xong."
+    pause
+}
+
+download_batch() {
+    echo
+    read -r -p "File URL (ví dụ ~/urls.txt): " LIST
+
+    if [ ! -f "$LIST" ]; then
+        echo "Không tìm thấy file."
+        pause
+        return
+    fi
+
+    yt-dlp \
+        --no-playlist \
+        -a "$LIST" \
+        -f "bv*+ba/b" \
+        --merge-output-format mp4 \
+        --embed-metadata \
+        --newline \
+        -o "$DOWNLOAD_DIR/%(title)s [%(id)s].%(ext)s"
+
+    echo "Đã hoàn tất."
+    pause
+}
+
+show_formats() {
+    get_url || return
+    yt-dlp --list-formats "$URL"
+    pause
+}
+
+update_ytdlp() {
+    python -m pip install -U "yt-dlp[default]"
+    echo
+    echo "yt-dlp: $(yt-dlp --version)"
+    pause
+}
+
+open_folder() {
+    if command -v termux-open >/dev/null 2>&1; then
+        termux-open "$DOWNLOAD_DIR"
+    else
+        echo "$DOWNLOAD_DIR"
+        pause
+    fi
+}
+
+system_check() {
+    echo
+    echo "yt-dlp : $(yt-dlp --version 2>/dev/null || echo 'chưa cài')"
+    echo "Python  : $(python --version 2>&1)"
+    echo "FFmpeg  : $(ffmpeg -version 2>&1 | head -1)"
+    echo
+    pause
+}
+
+main_menu() {
+    while true; do
+        header
+        echo "📥 1. Tải video"
+        echo "🎵 2. Tải audio MP3"
+        echo "🖼 3. Tải thumbnail"
+        echo "📋 4. Tải hàng loạt"
+        echo "🔍 5. Xem định dạng"
+        echo "🔄 6. Cập nhật yt-dlp"
+        echo "📂 7. Mở thư mục Download"
+        echo "ℹ️  8. Kiểm tra hệ thống"
+        echo "❌ 0. Thoát"
+        echo
+        read -r -p "Chọn: " choice
+
+        case "$choice" in
+            1) download_video ;;
+            2) download_audio ;;
+            3) download_thumbnail ;;
+            4) download_batch ;;
+            5) show_formats ;;
+            6) update_ytdlp ;;
+            7) open_folder ;;
+            8) system_check ;;
+            0) clear; exit 0 ;;
+            *) echo "Lựa chọn không hợp lệ."; sleep 1 ;;
+        esac
+    done
+}
+
+main_menu
