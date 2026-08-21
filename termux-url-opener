@@ -1,4 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 URL="${1:-}"
-[ -n "$URL" ] || exit 1
-exec "$HOME/bin/vdown" "$URL"
+[ -n "$URL" ] || exit 0
+# Nhận URL từ Share, đưa vào hàng đợi và thoát ngay.
+# Worker chạy nền nên session Share không bị giữ lại trong Termux.
+exec "$HOME/bin/vdown" --share "$URL"

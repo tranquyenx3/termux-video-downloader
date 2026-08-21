@@ -1,9 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.4 ALL SOURCES"
+VERSION="4.5 SHARE MODE"
 VIDEO_ROOT="$HOME/storage/downloads/Termux Video Downloader"
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
+QUEUE_FILE="$CONFIG_DIR/share.queue"
+WORKER_LOCK="$CONFIG_DIR/share.worker.lock"
+SHARE_LOG="$CONFIG_DIR/share.log"
 mkdir -p "$VIDEO_ROOT" "$CONFIG_DIR"
 
 # Android shared-storage path exposed by termux-setup-storage.
@@ -88,6 +91,43 @@ choose_site_dir() {
         *nicovideo.jp*) echo "Niconico" ;;
         *) echo "Other" ;;
     esac
+}
+
+share_enqueue() {
+    local URL="$1"
+    [ -n "$URL" ] || exit 1
+    mkdir -p "$CONFIG_DIR"
+    printf '%s\n' "$URL" >> "$QUEUE_FILE"
+    notify "VDown: đã nhận URL chia sẻ"
+}
+
+share_worker() {
+    # Chỉ cho phép một worker xử lý hàng đợi. Các session share khác thoát ngay.
+    if ! mkdir "$WORKER_LOCK" 2>/dev/null; then
+        exit 0
+    fi
+    trap 'rmdir "$WORKER_LOCK" 2>/dev/null || true' EXIT INT TERM
+
+    while true; do
+        [ -s "$QUEUE_FILE" ] || break
+        local URL TMP
+        URL="$(head -n 1 "$QUEUE_FILE")"
+        TMP="$QUEUE_FILE.tmp.$$"
+        # Xóa đúng URL đầu tiên trước khi tải; worker là tiến trình duy nhất đọc queue.
+        tail -n +2 "$QUEUE_FILE" > "$TMP" 2>/dev/null || :
+        mv -f "$TMP" "$QUEUE_FILE"
+        [ -n "$URL" ] || continue
+        printf '%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$URL" >> "$SHARE_LOG"
+        download_video "$URL" "best" || true
+    done
+}
+
+share_start() {
+    local URL="$1"
+    share_enqueue "$URL"
+    # Chạy worker nền để session do Share mở có thể thoát ngay.
+    nohup "$HOME/bin/vdown" --share-worker >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
+    disown 2>/dev/null || true
 }
 
 get_url() {
@@ -330,6 +370,8 @@ system_check() {
     echo "  Thông báo    : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
     echo "  Thư mục lưu  : $VIDEO_ROOT"
     echo "  Android path : /storage/emulated/0/Download/Termux Video Downloader"
+    echo "  Share queue  : $QUEUE_FILE"
+    echo "  Share worker : $( [ -d "$WORKER_LOCK" ] && echo RUNNING || echo IDLE )"
     pause
 }
 
@@ -390,6 +432,12 @@ menu() {
 }
 
 case "${1:-}" in
+    --share-worker)
+        share_worker
+        ;;
+    --share)
+        share_start "$2"
+        ;;
     --help|-h)
         echo 'vdown "URL"'
         echo 'vdown --audio "URL"'

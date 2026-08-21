@@ -9,11 +9,12 @@ python -m pip install -U "yt-dlp[default]"
 python -m pip install -U curl_cffi || true
 termux-setup-storage || true
 
-mkdir -p "$BIN_DIR" "$HOME/.config/vdown" "$HOME/storage/downloads/Termux Video Downloader"
+mkdir -p "$BIN_DIR" "$HOME/.termux" "$HOME/.config/vdown" "$HOME/storage/downloads/Termux Video Downloader"
 
 cp "$REPO_DIR/vdown" "$BIN_DIR/vdown"
 cp "$REPO_DIR/termux-url-opener" "$BIN_DIR/termux-url-opener"
-chmod +x "$BIN_DIR/vdown" "$BIN_DIR/termux-url-opener"
+cp "$REPO_DIR/termux-url-opener" "$HOME/.termux/termux-url-opener"
+chmod +x "$BIN_DIR/vdown" "$BIN_DIR/termux-url-opener" "$HOME/.termux/termux-url-opener"
 
 touch "$HOME/.bashrc"
 grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" || \
@@ -23,6 +24,6 @@ export PATH="$BIN_DIR:$PATH"
 
 echo
 echo "=========================================="
-echo " VDown 4.4 FIXED installed"
+echo " VDown 4.5 SHARE MODE installed"
 echo " Run: vdown"
 echo "=========================================="
