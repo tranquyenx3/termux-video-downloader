@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 URL="${1:-}"
 [ -n "$URL" ] || exit 0
-# Nhận URL từ Share, đưa vào hàng đợi và thoát ngay.
-# Worker chạy nền nên session Share không bị giữ lại trong Termux.
-exec "$HOME/bin/vdown" --share "$URL"
+# Pass URL to the single VDown queue/worker. No interactive menu is opened.
+"$HOME/bin/vdown" --share "$URL" >/dev/null 2>&1 &
+exit 0

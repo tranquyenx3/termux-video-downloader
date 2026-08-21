@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-VERSION="4.5 SHARE MODE"
+VERSION="4.5.1 SHARE MODE"
 VIDEO_ROOT="$HOME/storage/downloads/Termux Video Downloader"
 CONFIG_DIR="$HOME/.config/vdown"
 HISTORY_FILE="$CONFIG_DIR/history.log"
@@ -95,14 +95,21 @@ choose_site_dir() {
 
 share_enqueue() {
     local URL="$1"
-    [ -n "$URL" ] || exit 1
+    [ -n "$URL" ] || return 1
     mkdir -p "$CONFIG_DIR"
+    # Remove CR/LF and ignore empty input.
+    URL="${URL//$'\r'/}"
+    URL="${URL//$'\n'/}"
+    [ -n "$URL" ] || return 1
     printf '%s\n' "$URL" >> "$QUEUE_FILE"
     notify "VDown: đã nhận URL chia sẻ"
+    if command -v termux-toast >/dev/null 2>&1; then
+        termux-toast -s "VDown: đã nhận URL, đang chờ tải" >/dev/null 2>&1 || true
+    fi
 }
 
 share_worker() {
-    # Chỉ cho phép một worker xử lý hàng đợi. Các session share khác thoát ngay.
+    # One worker only. mkdir is an atomic lock on Android/Termux.
     if ! mkdir "$WORKER_LOCK" 2>/dev/null; then
         exit 0
     fi
@@ -111,9 +118,8 @@ share_worker() {
     while true; do
         [ -s "$QUEUE_FILE" ] || break
         local URL TMP
-        URL="$(head -n 1 "$QUEUE_FILE")"
+        URL="$(head -n 1 "$QUEUE_FILE" 2>/dev/null || true)"
         TMP="$QUEUE_FILE.tmp.$$"
-        # Xóa đúng URL đầu tiên trước khi tải; worker là tiến trình duy nhất đọc queue.
         tail -n +2 "$QUEUE_FILE" > "$TMP" 2>/dev/null || :
         mv -f "$TMP" "$QUEUE_FILE"
         [ -n "$URL" ] || continue
@@ -122,12 +128,49 @@ share_worker() {
     done
 }
 
+share_start_worker() {
+    # Start only when no worker is currently running. Each Share call therefore
+    # does not create its own downloader process.
+    if [ -d "$WORKER_LOCK" ]; then
+        return 0
+    fi
+    local CMD
+    CMD="\"$HOME/bin/vdown\" --share-worker"
+    if command -v setsid >/dev/null 2>&1; then
+        nohup setsid bash -c "$CMD" >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
+    else
+        nohup bash -c "$CMD" >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
+    fi
+    disown 2>/dev/null || true
+}
+
 share_start() {
     local URL="$1"
-    share_enqueue "$URL"
-    # Chạy worker nền để session do Share mở có thể thoát ngay.
-    nohup "$HOME/bin/vdown" --share-worker >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
-    disown 2>/dev/null || true
+    [ -n "$URL" ] || exit 0
+    share_enqueue "$URL" || exit 0
+    share_start_worker
+    # Do not print a full interactive UI. The Share session can return immediately.
+    exit 0
+}
+
+share_status() {
+    header
+    section "HÀNG ĐỢI SHARE"
+    echo
+    if [ -s "$QUEUE_FILE" ]; then
+        local i=1
+        while IFS= read -r URL; do
+            [ -n "$URL" ] || continue
+            printf '  [%d] %s\n' "$i" "$URL"
+            i=$((i+1))
+        done < "$QUEUE_FILE"
+    else
+        echo "  Hàng đợi đang trống."
+    fi
+    echo
+    echo "  Worker: $( [ -d "$WORKER_LOCK" ] && echo 'ĐANG CHẠY' || echo 'ĐANG CHỜ' )"
+    echo "  Log   : $CONFIG_DIR/share-worker.log"
+    pause
 }
 
 get_url() {
@@ -425,6 +468,7 @@ menu() {
             8) open_folder ;;
             9) system_check ;;
             10) supported_sources ;;
+            11) share_status ;;
             0) clear; exit 0 ;;
             *) echo -e "${RED}  Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
         esac
@@ -442,12 +486,16 @@ case "${1:-}" in
         echo 'vdown "URL"'
         echo 'vdown --audio "URL"'
         echo 'vdown --info "URL"'
+        echo 'vdown --share-status'
         ;;
     --audio)
         download_audio "$2"
         ;;
     --info)
         show_info "$2"
+        ;;
+    --share-status)
+        share_status
         ;;
     "")
         menu

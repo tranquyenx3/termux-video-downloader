@@ -1,21 +1,30 @@
-# Termux Video Downloader v4.5 – Share Mode
+# Termux Video Downloader v4.5.1 — Share Mode
 
-- Menu tiếng Việt.
-- Nhiều nguồn qua yt-dlp.
-- Thư mục: `Download/Termux Video Downloader/`.
-- Share Mode: chia sẻ URL từ TikTok/Facebook/YouTube… vào Termux.
-- URL được đưa vào hàng đợi, worker chạy nền và session share thoát ngay.
-- Nhiều URL chia sẻ liên tiếp được xử lý tuần tự.
-- Có thông báo Android khi nhận URL và khi tải xong.
+Bản sửa cho Share -> Termux: URL được đưa vào một hàng đợi chung, chỉ một worker tải tuần tự. Session nhận URL không mở menu tương tác.
 
-Cài đặt:
+## Cài đặt
 ```bash
 termux-setup-storage
+cd ~/storage/downloads
+unzip -o termux-video-downloader-v4.5.1-share-mode.zip -d ~/v451
+cd ~/v451
 bash install.sh
-vdown
 ```
 
-## Share
-Trong ứng dụng mạng xã hội chọn **Chia sẻ → Termux**. Không cần nhập URL thủ công.
+## Thư mục lưu
+`/storage/emulated/0/Download/Termux Video Downloader/`
 
-> Lưu ý: Termux vẫn có thể tạo một session/activity rất ngắn khi Android gọi `termux-url-opener`; VDown không thể điều khiển giao diện của Termux. Script thoát ngay và tải chạy nền để không giữ hàng loạt tab mở.
+## Share
+Trong TikTok/Facebook/YouTube: Share -> Termux. VDown tự nhận URL và đưa vào queue.
+
+Xem queue:
+```bash
+vdown --share-status
+```
+
+Log worker:
+```bash
+tail -f ~/.config/vdown/share-worker.log
+```
+
+Lưu ý: Android/Termux vẫn có thể tạo một session UI khi nhận Intent Share; script nhận URL thoát ngay, còn tải dùng worker chung.
