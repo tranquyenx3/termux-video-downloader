@@ -1,34 +1,33 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-BIN_DIR="$HOME/bin"
+APP="$HOME/.vdown"
+BIN="$PREFIX/bin"
+mkdir -p "$APP" "$HOME/bin"
 
-pkg update -y
-pkg install -y python python-pip ffmpeg
-python -m pip install -U "yt-dlp[default]"
-python -m pip install -U curl_cffi || true
-termux-setup-storage || true
+echo "== VDown V4.7 AUTO MEDIA =="
+echo "[1/6] Cập nhật package..."
+pkg update -y >/dev/null 2>&1 || true
 
-mkdir -p "$BIN_DIR" "$HOME/.termux" "$HOME/.config/vdown" "$HOME/storage/downloads/Termux Video Downloader"
-cp "$REPO_DIR/vdown" "$BIN_DIR/vdown"
-cp "$REPO_DIR/termux-url-opener" "$BIN_DIR/termux-url-opener"
-cp "$REPO_DIR/termux-url-opener" "$HOME/.termux/termux-url-opener"
-chmod +x "$BIN_DIR/vdown" "$BIN_DIR/termux-url-opener" "$HOME/.termux/termux-url-opener"
+echo "[2/6] Cài Python + FFmpeg..."
+pkg install -y python ffmpeg unzip >/dev/null
 
-touch "$HOME/.bashrc"
-grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" || echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
-export PATH="$BIN_DIR:$PATH"
+echo "[3/6] Cấp quyền bộ nhớ..."
+termux-setup-storage >/dev/null 2>&1 || true
 
-# Remove stale worker lock only if no downloader process is using it.
-if [ -d "$HOME/.config/vdown/share.worker.lock" ]; then
-  if ! pgrep -f 'vdown --share-worker' >/dev/null 2>&1; then
-    rmdir "$HOME/.config/vdown/share.worker.lock" 2>/dev/null || true
-  fi
-fi
+echo "[4/6] Cài/cập nhật yt-dlp..."
+python -m pip install -U yt-dlp
 
+echo "[5/6] Cài VDown..."
+cp -f "$(dirname "$0")/vdown" "$APP/vdown"
+cp -f "$(dirname "$0")/share/vdown-share" "$APP/vdown-share"
+chmod +x "$APP/vdown" "$APP/vdown-share"
+ln -sf "$APP/vdown" "$BIN/vdown"
+ln -sf "$APP/vdown-share" "$BIN/vdown-share"
+
+mkdir -p "$HOME/storage/shared/Download/Termux Video Downloader"/{Video,Audio,Thumbnail,Converted,History}
+
+echo "[6/6] Hoàn tất."
 echo
-echo "=========================================="
-echo " VDown 4.5.1 SHARE MODE installed"
-echo " Share -> Termux -> tự đưa vào hàng đợi"
-echo " Run: vdown"
-echo "=========================================="
+echo "Chạy: vdown"
+echo "Share URL trực tiếp: vdown-share 'URL'"
+echo "Thư mục: ~/storage/shared/Download/Termux Video Downloader"

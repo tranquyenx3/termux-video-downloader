@@ -1,506 +1,260 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# Termux Video Downloader V4.7 AUTO MEDIA
+set -u
 
-VERSION="4.5.1 SHARE MODE"
-VIDEO_ROOT="$HOME/storage/downloads/Termux Video Downloader"
-CONFIG_DIR="$HOME/.config/vdown"
-HISTORY_FILE="$CONFIG_DIR/history.log"
-QUEUE_FILE="$CONFIG_DIR/share.queue"
-WORKER_LOCK="$CONFIG_DIR/share.worker.lock"
-SHARE_LOG="$CONFIG_DIR/share.log"
-mkdir -p "$VIDEO_ROOT" "$CONFIG_DIR"
+BASE="$HOME/storage/shared/Download/Termux Video Downloader"
+VIDEO="$BASE/Video"
+AUDIO="$BASE/Audio"
+THUMB="$BASE/Thumbnail"
+CONVERT="$BASE/Converted"
+HIST="$BASE/History"
+mkdir -p "$VIDEO" "$AUDIO" "$THUMB" "$CONVERT" "$HIST"
 
-# Android shared-storage path exposed by termux-setup-storage.
-# This keeps downloaded files visible in the phone's Download folder.
-if [ ! -d "$HOME/storage/downloads" ]; then
-    echo "Chưa có quyền bộ nhớ dùng chung. Hãy chạy: termux-setup-storage" >&2
-fi
+command -v yt-dlp >/dev/null 2>&1 || { echo "Chưa có yt-dlp. Chạy: bash install.sh"; exit 1; }
+command -v ffmpeg >/dev/null 2>&1 || { echo "Chưa có ffmpeg. Chạy: pkg install ffmpeg"; exit 1; }
 
-# ANSI colors: use $'...' so Termux interprets escape codes correctly.
-RESET=$'\033[0m'
-BOLD=$'\033[1m'
-CYAN=$'\033[1;36m'
-BLUE=$'\033[1;34m'
-GREEN=$'\033[1;32m'
-YELLOW=$'\033[1;33m'
-RED=$'\033[1;31m'
-WHITE=$'\033[1;37m'
-DIM=$'\033[2m'
+cyan="\033[36m"; blue="\033[34m"; green="\033[32m"; yellow="\033[33m"; red="\033[31m"; reset="\033[0m"
 
-term_width() {
-    local w
-    w=$(tput cols 2>/dev/null || echo 50)
-    [ "$w" -gt 70 ] && w=70
-    [ "$w" -lt 42 ] && w=42
-    echo "$w"
+banner() {
+  clear
+  printf "${cyan}"
+  printf '+--------------------------------------------------------------+\n'
+  printf '|              TERMUX VIDEO DOWNLOADER V4.7                   |\n'
+  printf '|                    AUTO MEDIA PRO                           |\n'
+  printf '+--------------------------------------------------------------+\n'
+  printf "${reset}"
 }
 
-line() {
-    local n="$1"
-    printf '%*s' "$n" '' | tr ' ' '-'
-}
-
-header() {
-    clear
-    local w inner
-    w=$(term_width)
-    inner=$((w-4))
-
-    printf '%s+%s+%s\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
-    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+24)/2 )) "TERMUX VIDEO DOWNLOADER" $(( (inner-24)/2 )) "" "$RESET"
-    printf '%s|%*s%*s|%s\n' "$CYAN" $(( (inner+10)/2 )) "V$VERSION" $(( (inner-10)/2 )) "" "$RESET"
-    printf '%s+%s+%s\n\n' "$CYAN" "$(line "$((w-2))")" "$RESET"
-}
-
-section() {
-    printf '%s%s  %s%s\n' "$BLUE" "$BOLD" "$1" "$RESET"
-}
-
-pause() {
-    echo
-    read -r -p "  ${DIM}Nhấn Enter để tiếp tục...${RESET}" _
-}
-
-notify() {
-    if command -v termux-notification >/dev/null 2>&1; then
-        termux-notification --id 4040 --title "VDown" --content "$1" >/dev/null 2>&1 || true
-    fi
-}
-
-choose_site_dir() {
-    case "$1" in
-        *tiktok.com*|*douyin.com*|*iesdouyin.com*) echo "TikTok-Douyin" ;;
-        *youtube.com*|*youtu.be*) echo "YouTube" ;;
-        *facebook.com*|*fb.watch*) echo "Facebook" ;;
-        *instagram.com*) echo "Instagram" ;;
-        *x.com*|*twitter.com*) echo "X-Twitter" ;;
-        *reddit.com*) echo "Reddit" ;;
-        *vimeo.com*) echo "Vimeo" ;;
-        *dailymotion.com*) echo "Dailymotion" ;;
-        *weibo.com*) echo "Weibo" ;;
-        *xiaohongshu.com*|*xhslink.com*) echo "Xiaohongshu" ;;
-        *bilibili.com*) echo "Bilibili" ;;
-        *vk.com*) echo "VK" ;;
-        *twitch.tv*) echo "Twitch" ;;
-        *pinterest.com*) echo "Pinterest" ;;
-        *tumblr.com*) echo "Tumblr" ;;
-        *linkedin.com*) echo "LinkedIn" ;;
-        *threads.net*) echo "Threads" ;;
-        *snapchat.com*) echo "Snapchat" ;;
-        *likee.video*|*likee.com*) echo "Likee" ;;
-        *kwai.com*|*kuaishou.com*) echo "Kwai" ;;
-        *nicovideo.jp*) echo "Niconico" ;;
-        *) echo "Other" ;;
-    esac
-}
-
-share_enqueue() {
-    local URL="$1"
-    [ -n "$URL" ] || return 1
-    mkdir -p "$CONFIG_DIR"
-    # Remove CR/LF and ignore empty input.
-    URL="${URL//$'\r'/}"
-    URL="${URL//$'\n'/}"
-    [ -n "$URL" ] || return 1
-    printf '%s\n' "$URL" >> "$QUEUE_FILE"
-    notify "VDown: đã nhận URL chia sẻ"
-    if command -v termux-toast >/dev/null 2>&1; then
-        termux-toast -s "VDown: đã nhận URL, đang chờ tải" >/dev/null 2>&1 || true
-    fi
-}
-
-share_worker() {
-    # One worker only. mkdir is an atomic lock on Android/Termux.
-    if ! mkdir "$WORKER_LOCK" 2>/dev/null; then
-        exit 0
-    fi
-    trap 'rmdir "$WORKER_LOCK" 2>/dev/null || true' EXIT INT TERM
-
-    while true; do
-        [ -s "$QUEUE_FILE" ] || break
-        local URL TMP
-        URL="$(head -n 1 "$QUEUE_FILE" 2>/dev/null || true)"
-        TMP="$QUEUE_FILE.tmp.$$"
-        tail -n +2 "$QUEUE_FILE" > "$TMP" 2>/dev/null || :
-        mv -f "$TMP" "$QUEUE_FILE"
-        [ -n "$URL" ] || continue
-        printf '%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$URL" >> "$SHARE_LOG"
-        download_video "$URL" "best" || true
-    done
-}
-
-share_start_worker() {
-    # Start only when no worker is currently running. Each Share call therefore
-    # does not create its own downloader process.
-    if [ -d "$WORKER_LOCK" ]; then
-        return 0
-    fi
-    local CMD
-    CMD="\"$HOME/bin/vdown\" --share-worker"
-    if command -v setsid >/dev/null 2>&1; then
-        nohup setsid bash -c "$CMD" >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
-    else
-        nohup bash -c "$CMD" >> "$CONFIG_DIR/share-worker.log" 2>&1 < /dev/null &
-    fi
-    disown 2>/dev/null || true
-}
-
-share_start() {
-    local URL="$1"
-    [ -n "$URL" ] || exit 0
-    share_enqueue "$URL" || exit 0
-    share_start_worker
-    # Do not print a full interactive UI. The Share session can return immediately.
-    exit 0
-}
-
-share_status() {
-    header
-    section "HÀNG ĐỢI SHARE"
-    echo
-    if [ -s "$QUEUE_FILE" ]; then
-        local i=1
-        while IFS= read -r URL; do
-            [ -n "$URL" ] || continue
-            printf '  [%d] %s\n' "$i" "$URL"
-            i=$((i+1))
-        done < "$QUEUE_FILE"
-    else
-        echo "  Hàng đợi đang trống."
-    fi
-    echo
-    echo "  Worker: $( [ -d "$WORKER_LOCK" ] && echo 'ĐANG CHẠY' || echo 'ĐANG CHỜ' )"
-    echo "  Log   : $CONFIG_DIR/share-worker.log"
-    pause
-}
+pause(){ echo; read -r -p "Enter để tiếp tục..." _; }
 
 get_url() {
-    local n
-    section "NGUỒN URL"
-    echo "  [1] Nhập / dán URL"
-    echo "  [2] Clipboard"
-    echo
-    read -r -p "  Chọn [1-2]: " n
-    case "$n" in
-        1) read -r -p "  URL: " URL ;;
-        2)
-            if command -v termux-clipboard-get >/dev/null 2>&1; then
-                URL="$(termux-clipboard-get 2>/dev/null)"
-                echo "  Clipboard: ${URL:0:65}"
-            else
-                echo -e "${RED}  Clipboard không khả dụng${RESET}"
-                return 1
-            fi
-            ;;
-        *) return 1 ;;
-    esac
-    [ -n "${URL:-}" ] || {
-        echo -e "${RED}  URL trống${RESET}"
-        return 1
-    }
+  local u="${1:-}"
+  if [ -n "$u" ]; then URL="$u"; return; fi
+  echo "URL nguồn (YouTube/TikTok/Douyin/Facebook/ZingMP3/...):"
+  read -r URL
+  URL="${URL#\'}"; URL="${URL%\'}"
+  URL="${URL#\"}"; URL="${URL%\"}"
 }
 
-supported_sources() {
-    header
-    section "NGUỒN HỖ TRỢ TỰ ĐỘNG"
-    echo
-    echo "  VDown dùng yt-dlp để tự nhận diện URL."
-    echo
-    echo "  Mạng xã hội phổ biến:"
-    echo "  • TikTok / Douyin"
-    echo "  • YouTube / Shorts"
-    echo "  • Facebook / Reels"
-    echo "  • Instagram / Reels"
-    echo "  • X (Twitter)"
-    echo "  • Reddit"
-    echo "  • Vimeo / Dailymotion"
-    echo "  • Weibo / Xiaohongshu"
-    echo "  • Bilibili / VK"
-    echo "  • Twitch / Pinterest"
-    echo "  • Tumblr / LinkedIn / Threads"
-    echo "  • Snapchat / Likee / Kwai"
-    echo
-    echo "  Ngoài ra còn rất nhiều website khác."
-    echo "  URL không nằm trong danh sách vẫn có thể"
-    echo "  hoạt động qua bộ trích xuất generic."
-    echo
-    echo "  Lưu ý: website thay đổi liên tục; không phải"
-    echo "  URL nào cũng được đảm bảo tải thành công."
-    pause
+detect() {
+  echo
+  echo -e "${yellow}Đang tự nhận dạng nguồn + lấy metadata...${reset}"
+  yt-dlp --no-warnings --skip-download --print "%(extractor_key)s|%(title)s|%(duration_string)s|%(webpage_url_domain)s" "$URL" 2>/dev/null | head -n 1
 }
 
-quality_menu() {
-    # Menu được in ra stderr vì hàm được gọi bằng command substitution: Q="$(quality_menu)"
-    echo >&2
-    echo -e "${BLUE}CHẤT LƯỢNG VIDEO${RESET}" >&2
-    echo "  [1] Tốt nhất" >&2
-    echo "  [2] 4K       2160p" >&2
-    echo "  [3] 2K       1440p" >&2
-    echo "  [4] FULL HD  1080p" >&2
-    echo "  [5] HD        720p" >&2
-    echo "  [6] SD        480p" >&2
-    echo >&2
-    read -r -p "  Chọn [1-6]: " q
-    case "$q" in
-        2) echo "2160" ;;
-        3) echo "1440" ;;
-        4) echo "1080" ;;
-        5) echo "720" ;;
-        6) echo "480" ;;
-        *) echo "best" ;;
-    esac
+video() {
+  get_url "${1:-}"
+  detect
+  echo
+  echo -e "${blue}CHỌN CHẤT LƯỢNG VIDEO${reset}"
+  echo "[1] Tốt nhất có thể"
+  echo "[2] 4K / <=2160p"
+  echo "[3] 2K / <=1440p"
+  echo "[4] Full HD / <=1080p"
+  echo "[5] HD / <=720p"
+  echo "[6] SD / <=480p"
+  echo "[7] Xem toàn bộ format thực tế"
+  read -r -p "Chọn [1-7]: " q
+  case "$q" in
+    1) F='bv*+ba/b' ;;
+    2) F='bv*[height<=2160]+ba/b[height<=2160]' ;;
+    3) F='bv*[height<=1440]+ba/b[height<=1440]' ;;
+    4) F='bv*[height<=1080]+ba/b[height<=1080]' ;;
+    5) F='bv*[height<=720]+ba/b[height<=720]' ;;
+    6) F='bv*[height<=480]+ba/b[height<=480]' ;;
+    7) yt-dlp -F "$URL"; pause; return ;;
+    *) echo "Lựa chọn không hợp lệ"; return ;;
+  esac
+  echo -e "${green}Đang tải...${reset}"
+  yt-dlp --newline --no-playlist --merge-output-format mp4 \
+    -f "$F" -o "$VIDEO/%(extractor_key)s/%(title)s [%(id)s].%(ext)s" "$URL" \
+    && echo "$(date '+%F %T') VIDEO $URL" >> "$HIST/download.log"
+  pause
 }
 
-quality_format() {
-    case "$1" in
-        2160) echo "bv*[height<=2160]+ba/b" ;;
-        1440) echo "bv*[height<=1440]+ba/b" ;;
-        1080) echo "bv*[height<=1080]+ba/b" ;;
-        720)  echo "bv*[height<=720]+ba/b" ;;
-        480)  echo "bv*[height<=480]+ba/b" ;;
-        *) echo "bv*+ba/b" ;;
-    esac
+audio() {
+  get_url "${1:-}"
+  detect
+  echo
+  echo -e "${blue}CHỌN ÂM THANH${reset}"
+  echo "[1] MP3 320 kbps"
+  echo "[2] MP3 256 kbps"
+  echo "[3] MP3 192 kbps"
+  echo "[4] MP3 128 kbps"
+  echo "[5] M4A/AAC"
+  echo "[6] OPUS"
+  echo "[7] FLAC (chỉ hợp lý nếu nguồn có chất lượng tương ứng)"
+  echo "[8] WAV"
+  read -r -p "Chọn [1-8]: " q
+  case "$q" in
+    1) pp='mp3'; br='320K' ;;
+    2) pp='mp3'; br='256K' ;;
+    3) pp='mp3'; br='192K' ;;
+    4) pp='mp3'; br='128K' ;;
+    5) pp='m4a'; br='' ;;
+    6) pp='opus'; br='' ;;
+    7) pp='flac'; br='' ;;
+    8) pp='wav'; br='' ;;
+    *) echo "Lựa chọn không hợp lệ"; return ;;
+  esac
+  args=(--newline --no-playlist -x --audio-format "$pp" --audio-quality 0
+        -o "$AUDIO/%(extractor_key)s/%(title)s [%(id)s].%(ext)s")
+  [ -n "$br" ] && args+=(--postprocessor-args "ffmpeg:-b:a $br")
+  echo -e "${green}Đang tải và chuyển đổi...${reset}"
+  yt-dlp "${args[@]}" "$URL" \
+    && echo "$(date '+%F %T') AUDIO $URL" >> "$HIST/download.log"
+  pause
 }
 
-download_video() {
-    local URL="$1"
-    local QUALITY="${2:-best}"
-    local SITE DIR FORMAT
-    SITE="$(choose_site_dir "$URL")"
-    DIR="$VIDEO_ROOT/$SITE"
-    FORMAT="$(quality_format "$QUALITY")"
-    mkdir -p "$DIR"
-
-    header
-    section "TẢI VIDEO"
-    echo "  Nguồn       : $SITE"
-    echo "  Chất lượng  : $QUALITY"
-    echo "  Lưu tại     : $DIR"
-    echo "  URL         : ${URL:0:65}"
-    echo
-    echo -e "${CYAN}${BOLD}  ĐANG TẢI...${RESET}"
-    echo
-
-    if yt-dlp \
-        --no-playlist \
-        --newline \
-        --progress \
-        --retries 5 \
-        --fragment-retries 5 \
-        --concurrent-fragments 4 \
-        --socket-timeout 20 \
-        -f "$FORMAT" \
-        --merge-output-format mp4 \
-        --embed-metadata \
-        --windows-filenames \
-        -o "$DIR/%(title).180B [%(id)s].%(ext)s" \
-        "$URL"
-    then
-        printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SITE" "$URL" >> "$HISTORY_FILE"
-        echo
-        echo -e "${GREEN}${BOLD}  [OK] TẢI VIDEO HOÀN TẤT${RESET}"
-        echo "  Thư mục: $DIR"
-        notify "Tải xong - $SITE"
-        return 0
-    else
-        echo
-        echo -e "${RED}${BOLD}  [LỖI] TẢI VIDEO THẤT BẠI${RESET}"
-        notify "Tải lỗi - $SITE"
-        return 1
-    fi
+convert() {
+  get_url "${1:-}"
+  echo
+  echo "[1] Tải video rồi xuất MP4"
+  echo "[2] Tải video rồi xuất MKV"
+  echo "[3] Tải video rồi xuất WEBM"
+  echo "[4] Chọn format nguồn rồi chuyển đổi"
+  read -r -p "Chọn [1-4]: " q
+  case "$q" in
+    1) ext=mp4; codec='libx264'; ac='aac' ;;
+    2) ext=mkv; codec='libx264'; ac='aac' ;;
+    3) ext=webm; codec='libvpx-vp9'; ac='libopus' ;;
+    4) yt-dlp -F "$URL"; read -r -p "Nhập format ID: " fid
+       yt-dlp --newline --no-playlist -f "$fid" \
+       -o "$CONVERT/%(title)s [%(id)s].%(ext)s" "$URL"; pause; return ;;
+    *) echo "Lựa chọn không hợp lệ"; return ;;
+  esac
+  echo "Chọn chất lượng đầu ra:"
+  echo "[1] Cao  (CRF 18)"
+  echo "[2] Cân bằng (CRF 23)"
+  echo "[3] Nhẹ (CRF 28)"
+  read -r -p "Chọn [1-3]: " cq
+  case "$cq" in 1) crf=18;;2) crf=23;;3) crf=28;;*) crf=23;; esac
+  tmp="$CONVERT/.tmp-%(id)s.%(ext)s"
+  echo -e "${green}Đang tải + chuyển đổi...${reset}"
+  yt-dlp --newline --no-playlist -f 'bv*+ba/b' \
+    -o "$tmp" "$URL" || { pause; return; }
+  # Find newest media and transcode it.
+  src="$(find "$CONVERT" -maxdepth 1 -type f -name '.tmp-*' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)"
+  [ -z "${src:-}" ] && { echo "Không tìm thấy file tạm."; pause; return; }
+  out="${src/.tmp-/.}"
+  out="${out%.*}.$ext"
+  ffmpeg -hide_banner -y -i "$src" -c:v "$codec" -crf "$crf" -c:a "$ac" "$out"
+  rm -f "$src"
+  pause
 }
 
-download_audio() {
-    local URL="$1"
-    local SITE DIR
-    SITE="$(choose_site_dir "$URL")"
-    DIR="$VIDEO_ROOT/$SITE/Audio"
-    mkdir -p "$DIR"
-
-    header
-    section "TẢI MP3"
-    echo "  Nguồn: $SITE"
-    echo
-
-    if yt-dlp \
-        --no-playlist --newline --progress --retries 5 \
-        -f "ba/b" -x --audio-format mp3 --audio-quality 0 \
-        --embed-metadata --windows-filenames \
-        -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
-    then
-        echo
-        echo -e "${GREEN}${BOLD}  [OK] TẢI MP3 HOÀN TẤT${RESET}"
-        notify "Tải MP3 xong - $SITE"
-        return 0
-    fi
-
-    echo -e "${RED}  [LỖI] TẢI MP3 THẤT BẠI${RESET}"
-    return 1
+thumb() {
+  get_url "${1:-}"
+  yt-dlp --no-playlist --write-thumbnail --skip-download \
+    --convert-thumbnails jpg \
+    -o "$THUMB/%(extractor_key)s/%(title)s [%(id)s].%(ext)s" "$URL"
+  pause
 }
 
-download_thumbnail() {
-    local URL="$1"
-    local SITE DIR
-    SITE="$(choose_site_dir "$URL")"
-    DIR="$VIDEO_ROOT/$SITE/Thumbnails"
-    mkdir -p "$DIR"
-
-    header
-    section "THUMBNAIL"
-    echo
-    yt-dlp --no-playlist --skip-download --write-thumbnail \
-        --convert-thumbnails jpg --windows-filenames \
-        -o "$DIR/%(title).180B [%(id)s].%(ext)s" "$URL"
+info() {
+  get_url "${1:-}"
+  yt-dlp --no-playlist --print "%(extractor)s\n%(extractor_key)s\n%(title)s\n%(channel)s\n%(duration_string)s\n%(resolution)s\n%(fps)s\n%(filesize_approx)s\n%(webpage_url)s" "$URL"
+  echo
+  yt-dlp -F "$URL"
+  pause
 }
 
-show_info() {
-    header
-    section "THÔNG TIN MEDIA"
-    yt-dlp --no-playlist --dump-single-json --skip-download "$1" 2>/dev/null |
-    python -c '
-import json,sys
-try:
-    d=json.load(sys.stdin)
-    for k in ("title","uploader","channel","duration","upload_date","webpage_url"):
-        if d.get(k) is not None:
-            print(f"  {k:<12}: {d[k]}")
-except Exception:
-    pass
-'
-    echo
-    section "CÁC ĐỊNH DẠNG CÓ SẴN"
-    yt-dlp --no-playlist --list-formats "$1"
+history() {
+  echo "=== LỊCH SỬ ==="
+  [ -f "$HIST/download.log" ] && tail -n 50 "$HIST/download.log" || echo "Chưa có lịch sử."
+  pause
 }
 
-batch_download() {
-    local LIST URL
-    header
-    section "TẢI HÀNG LOẠT"
-    read -r -p "  URL file [~/urls.txt]: " LIST
-
-    [ -f "$LIST" ] || {
-        echo -e "${RED}  Không tìm thấy file${RESET}"
-        pause
-        return
-    }
-
-    while IFS= read -r URL || [ -n "$URL" ]; do
-        [ -z "$URL" ] && continue
-        case "$URL" in \#*) continue ;; esac
-        download_video "$URL" "best" || true
-    done < "$LIST"
-
-    pause
-}
-
-history_view() {
-    header
-    section "LỊCH SỬ TẢI"
-    if [ -f "$HISTORY_FILE" ]; then
-        tail -30 "$HISTORY_FILE"
-    else
-        echo "  Chưa có lượt tải nào."
-    fi
-    pause
+open_dir() {
+  termux-open "$BASE" >/dev/null 2>&1 || true
+  echo "Thư mục:"
+  echo "$BASE"
+  pause
 }
 
 system_check() {
-    header
-    section "TRẠNG THÁI HỆ THỐNG"
-    echo "  VDown        : $VERSION"
-    echo "  yt-dlp       : $(yt-dlp --version 2>/dev/null || echo missing)"
-    echo "  Python       : $(python --version 2>&1)"
-    echo "  FFmpeg       : $(ffmpeg -version 2>&1 | head -1)"
-    echo "  Thông báo    : $(command -v termux-notification >/dev/null 2>&1 && echo ON || echo OFF)"
-    echo "  Thư mục lưu  : $VIDEO_ROOT"
-    echo "  Android path : /storage/emulated/0/Download/Termux Video Downloader"
-    echo "  Share queue  : $QUEUE_FILE"
-    echo "  Share worker : $( [ -d "$WORKER_LOCK" ] && echo RUNNING || echo IDLE )"
-    pause
+  echo "=== HỆ THỐNG ==="
+  echo "yt-dlp: $(yt-dlp --version 2>/dev/null || echo N/A)"
+  echo "ffmpeg: $(ffmpeg -version 2>/dev/null | head -n1 || echo N/A)"
+  echo "Python: $(python --version 2>&1)"
+  echo
+  echo "Dung lượng:"
+  df -h "$HOME/storage/shared" 2>/dev/null || df -h "$HOME"
+  pause
 }
 
-update_tool() {
-    header
-    section "CẬP NHẬT YT-DLP"
-    python -m pip install -U "yt-dlp[default]"
+sources() {
+  echo "yt-dlp có extractor cho rất nhiều website; không thể cam kết mọi URL."
+  echo "Ví dụ hiện có: YouTube, TikTok, Douyin, Facebook, ZingMP3 và nhiều nguồn khác."
+  echo "ZingMP3 hiện có extractor zingmp3 theo danh sách hỗ trợ của yt-dlp."
+  echo
+  echo "Kiểm tra trực tiếp một URL bằng mục [5] Thông tin + định dạng."
+  pause
+}
+
+share_queue() {
+  echo "=== SHARE MODE ==="
+  echo "Dùng: vdown-share 'URL'"
+  echo "Lịch sử share:"
+  tail -n 30 "$HIST/share.log" 2>/dev/null || echo "Chưa có."
+  pause
+}
+
+main_menu() {
+  while true; do
+    banner
+    echo -e "${blue}MENU CHÍNH${reset}"
+    echo "[1] 🎬 Tải Video"
+    echo "[2] 🎵 Tải Nhạc"
+    echo "[3] 🔄 Video → Video"
+    echo "[4] 🖼 Tải Thumbnail"
+    echo "[5] 🔎 Thông tin + format thực tế"
+    echo "[6] 📜 Lịch sử tải"
+    echo "[7] ⬆ Cập nhật yt-dlp"
+    echo "[8] 📂 Mở thư mục Video"
+    echo "[9] ⚙ Kiểm tra hệ thống"
+    echo "[10] 🌐 Nguồn hỗ trợ"
+    echo "[11] 📲 Share Mode"
+    echo "[0] Thoát"
     echo
-    echo "  Phiên bản hiện tại: $(yt-dlp --version)"
-    pause
+    read -r -p "VDown > " n
+    case "$n" in
+      1) video ;;
+      2) audio ;;
+      3) convert ;;
+      4) thumb ;;
+      5) info ;;
+      6) history ;;
+      7) python -m pip install -U yt-dlp; pause ;;
+      8) open_dir ;;
+      9) system_check ;;
+      10) sources ;;
+      11) share_queue ;;
+      0) exit 0 ;;
+      *) echo "Sai lựa chọn"; sleep 1 ;;
+    esac
+  done
 }
 
-open_folder() {
-    mkdir -p "$VIDEO_ROOT"
-    if command -v termux-open >/dev/null 2>&1; then
-        termux-open "$VIDEO_ROOT" >/dev/null 2>&1 || true
-    else
-        echo "$VIDEO_ROOT"
-        pause
-    fi
-}
-
-menu() {
-    while true; do
-        header
-        section "MENU CHÍNH"
-        echo
-        echo -e "  ${CYAN}[1]${RESET}  Tải Video"
-        echo -e "  ${CYAN}[2]${RESET}  Tải MP3"
-        echo -e "  ${CYAN}[3]${RESET}  Tải Thumbnail"
-        echo -e "  ${CYAN}[4]${RESET}  Tải hàng loạt"
-        echo -e "  ${CYAN}[5]${RESET}  Thông tin + định dạng"
-        echo -e "  ${CYAN}[6]${RESET}  Lịch sử tải"
-        echo -e "  ${CYAN}[7]${RESET}  Cập nhật yt-dlp"
-        echo -e "  ${CYAN}[8]${RESET}  Mở thư mục Video"
-        echo -e "  ${CYAN}[9]${RESET}  Kiểm tra hệ thống"
-        echo -e "  ${CYAN}[10]${RESET} Danh sách nguồn hỗ trợ"
-        echo -e "  ${RED}[0]${RESET}  Thoát"
-        echo
-        echo -e "  ${DIM}------------------------------------------${RESET}"
-        read -r -p "  ${WHITE}VDown > ${RESET}" c
-
-        case "$c" in
-            1) get_url || continue; Q="$(quality_menu)"; download_video "$URL" "$Q"; pause ;;
-            2) get_url || continue; download_audio "$URL"; pause ;;
-            3) get_url || continue; download_thumbnail "$URL"; pause ;;
-            4) batch_download ;;
-            5) get_url || continue; show_info "$URL"; pause ;;
-            6) history_view ;;
-            7) update_tool ;;
-            8) open_folder ;;
-            9) system_check ;;
-            10) supported_sources ;;
-            11) share_status ;;
-            0) clear; exit 0 ;;
-            *) echo -e "${RED}  Lựa chọn không hợp lệ${RESET}"; sleep 1 ;;
-        esac
-    done
-}
-
-case "${1:-}" in
-    --share-worker)
-        share_worker
-        ;;
-    --share)
-        share_start "$2"
-        ;;
-    --help|-h)
-        echo 'vdown "URL"'
-        echo 'vdown --audio "URL"'
-        echo 'vdown --info "URL"'
-        echo 'vdown --share-status'
-        ;;
-    --audio)
-        download_audio "$2"
-        ;;
-    --info)
-        show_info "$2"
-        ;;
-    --share-status)
-        share_status
-        ;;
-    "")
-        menu
-        ;;
-    *)
-        download_video "$1" "${2:-best}"
-        ;;
-esac
+# URL passed as argument = one-shot auto media mode.
+if [ $# -gt 0 ]; then
+  URL="$*"
+  echo "VDown AUTO MEDIA"
+  echo "URL: $URL"
+  echo
+  detect
+  echo
+  echo "[1] Video tốt nhất"
+  echo "[2] Audio MP3 320"
+  echo "[3] Xem format thực tế"
+  echo "[0] Hủy"
+  read -r -p "Chọn: " q
+  case "$q" in
+    1) video "$URL" ;;
+    2) audio "$URL" ;;
+    3) info "$URL" ;;
+    *) exit 0 ;;
+  esac
+else
+  main_menu
+fi
